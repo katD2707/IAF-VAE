@@ -84,6 +84,8 @@ class VariationalFlow(nn.Module):
     def __init__(self, latent_size, data_size, flow_depth):
         super().__init__()
         hidden_size = latent_size * 2
+
+        # EncoderNN
         self.inference_network = NeuralNetwork(
             input_size=data_size,
             # loc, scale, and context
@@ -102,14 +104,14 @@ class VariationalFlow(nn.Module):
             modules.append(flow.Reverse(latent_size))
         self.q_z_flow = flow.FlowSequential(*modules)
         self.log_q_z_0 = NormalLogProb()
-        self.softplus = nn.Softplus()
+        self.softplus = nn.Softplus()       # 1/beta * log(1 + exp(beta*x))
 
     def forward(self, x, n_samples=1):
         """Return sample of latent variable and log prob."""
         loc, scale_arg, h = torch.chunk(
             self.inference_network(x).unsqueeze(1), chunks=3, dim=-1
         )
-        scale = self.softplus(scale_arg)
+        scale = self.softplus(scale_arg)    # Ensure scale always >= 0
         eps = torch.randn((loc.shape[0], n_samples, loc.shape[-1]), device=loc.device)
         z_0 = loc + scale * eps  # reparameterization
         log_q_z_0 = self.log_q_z_0(loc, scale, z_0)

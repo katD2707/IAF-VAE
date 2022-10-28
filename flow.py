@@ -43,14 +43,13 @@ class FlowSequential(nn.Sequential):
         return input, total_log_prob
 
 
-class MaskedLinear(nn.Module):
+class MaskedLinear(nn.Linear):
     """Linear layer with some input-output connections masked."""
 
     def __init__(
         self, in_features, out_features, mask, context_features=None, bias=True
     ):
-        super().__init__()
-        self.linear = nn.Linear(in_features, out_features, bias)
+        super(MaskedLinear, self).__init__(in_features, out_features, bias)
         self.register_buffer("mask", mask)
         if context_features is not None:
             self.cond_linear = nn.Linear(context_features, out_features, bias=False)
@@ -119,7 +118,7 @@ class Reverse(nn.Module):
         self.perm = np.array(np.arange(0, num_input)[::-1])
         self.inv_perm = np.argsort(self.perm)
 
-    def forward(self, inputs, mode="forward"):
+    def forward(self, inputs, context=None, mode="forward"):
         if mode == "forward":
             return inputs[:, :, self.perm], torch.zeros_like(
                 inputs, device=inputs.device
