@@ -43,13 +43,14 @@ class FlowSequential(nn.Sequential):
         return input, total_log_prob
 
 
-class MaskedLinear(nn.Linear):
+class MaskedLinear(nn.Module):
     """Linear layer with some input-output connections masked."""
 
     def __init__(
         self, in_features, out_features, mask, context_features=None, bias=True
     ):
-        super(MaskedLinear, self).__init__(in_features, out_features, bias)
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features, bias)
         self.register_buffer("mask", mask)
         if context_features is not None:
             self.cond_linear = nn.Linear(context_features, out_features, bias=False)

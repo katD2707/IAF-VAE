@@ -26,8 +26,8 @@ def add_args(parser):
     parser.add_argument("--n_samples", type=int, default=1000)
     parser.add_argument("--use_gpu", action="store_true")
     parser.add_argument("--seed", type=int, default=582838)
-    parser.add_argument("--train_dir", type=pathlib.Path, default="/tmp")
-    parser.add_argument("--data_dir", type=pathlib.Path, default="/tmp")
+    parser.add_argument("--train_dir", type=pathlib.Path, default="data/")
+    parser.add_argument("--data_dir", type=pathlib.Path, default="data/")
 
 
 class Model(nn.Module):

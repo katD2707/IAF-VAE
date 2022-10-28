@@ -22,7 +22,9 @@ def parse_binary_mnist(data_dir):
 
 
 def download_binary_mnist(fname):
-    data_dir = "/tmp/"
+    data_dir = "data/"
+    if os.path.exists(data_dir) is False:
+        os.makedirs(data_dir)
     subdatasets = ["train", "valid", "test"]
     for subdataset in subdatasets:
         filename = "binarized_mnist_{}.amat".format(subdataset)
