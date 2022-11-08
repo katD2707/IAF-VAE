@@ -1,56 +1,30 @@
-import numpy as np
+import torch
 
 
-def create_input_order(input_size, input_order="left-to-right"):
-    """Returns a degree vectors for the input."""
-    if input_order == "left-to-right":
-        return np.arange(start=1, stop=input_size + 1)
-    elif input_order == "right-to-left":
-        return np.arange(start=input_size, stop=0, step=-1)
-    elif input_order == "random":
-        ret = np.arange(start=1, stop=input_size + 1)
-        np.random.shuffle(ret)
-        return ret
+def get_linear_ar_mask(n_in, n_out, zerodiagonal=False):
+    assert n_in % n_out == 0 or n_out % n_in == 0, "%d - %d" % (n_in, n_out)
+
+    mask = torch.ones([n_in, n_out], dtype=torch.float32)
+    if n_out >= n_in:
+        k = n_out / n_in
+        for i in range(n_in):
+            mask[i + 1:, i * k:(i + 1) * k] = 0
+            if zerodiagonal:
+                mask[i:i + 1, i * k:(i + 1) * k] = 0
+    else:
+        k = n_in / n_out
+        for i in range(n_out):
+            mask[(i + 1) * k:, i:i + 1] = 0
+            if zerodiagonal:
+                mask[i * k:(i + 1) * k:, i:i + 1] = 0
+    return mask
 
 
-def create_degrees(
-    input_size, hidden_units, input_order="left-to-right", hidden_degrees="equal"
-):
-    input_order = create_input_order(input_size, input_order)
-    degrees = [input_order]
-    for units in hidden_units:
-        if hidden_degrees == "random":
-            # samples from: [low, high)
-            degrees.append(
-                np.random.randint(
-                    low=min(np.min(degrees[-1]), input_size - 1),
-                    high=input_size,
-                    size=units,
-                )
-            )
-        elif hidden_degrees == "equal":
-            min_degree = min(np.min(degrees[-1]), input_size - 1)
-            degrees.append(
-                np.maximum(
-                    min_degree,
-                    # Evenly divide the range `[1, input_size - 1]` in to `units + 1`
-                    # segments, and pick the boundaries between the segments as degrees.
-                    np.ceil(
-                        np.arange(1, units + 1) * (input_size - 1) / float(units + 1)
-                    ).astype(np.int32),
-                )
-            )
-    return degrees
-
-
-def create_masks(degrees):
-    """Returns a list of binary mask matrices enforcing autoregressivity."""
-    return [
-        # Create input->hidden and hidden->hidden masks.
-        inp[:, np.newaxis] <= out
-        for inp, out in zip(degrees[:-1], degrees[1:])
-    ] + [
-        # Create hidden->output mask.
-        degrees[-1][:, np.newaxis]
-        < degrees[0]
-    ]
+def get_conv_ar_mask(h, w, n_in, n_out, zerodiagonal=False):
+    l = (h - 1) / 2
+    m = (w - 1) / 2
+    mask = torch.ones([h, w, n_in, n_out], dtype=torch.float32)
+    mask[:l, :, :, :] = 0
+    mask[l, :m, :, :] = 0
+    mask[l, m, :, :] = get_linear_ar_mask(n_in, n_out, zerodiagonal)
+    return mask
