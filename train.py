@@ -107,6 +107,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     with open(args.config_path, "r") as params:
         args = yaml.load(params, Loader=yaml.FullLoader)
+    params = utils.Struct(**args)
 
-    print(args)
-    train(args)
+    print(params)
+    train(params)
