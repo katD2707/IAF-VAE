@@ -3,13 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from masks import get_conv_ar_mask
 from utils import *
+from torchsummary import summary
+
 
 class CVAE(nn.Module):
     def __init__(self,
                  in_channels,
                  hidden_size,
                  z_size,
-                 batch_size,
                  k,
                  kl_min,
                  num_hidden_layers,
@@ -22,16 +23,17 @@ class CVAE(nn.Module):
         self.h_size = hidden_size
         self.z_size = z_size
         self.mode = mode
-        self.data_size = batch_size * k
         self.image_size = image_size
         self.k = k
+
+        self.register_parameter('dec_log_stdv', torch.nn.Parameter(torch.Tensor([0.])))
 
         # Encoder input     # (B, hidden_size, 16, 16)
         self.x_enc = nn.Conv2d(in_channels,
                                self.h_size,
-                               kernel_size=(5, 5),
+                               kernel_size=(4, 4),
                                stride=2,
-                               padding=2,
+                               padding=1,
                                )
 
         # Inference and generative
@@ -40,17 +42,15 @@ class CVAE(nn.Module):
             self.layers.append([])
             for j in range(num_blocks):
                 downsample = (i > 0) and (j == 0)
-                self.layers[-1].append(IAFLayer(in_channels,
+                self.layers[-1].append(IAFLayer(self.h_size,
                                                 z_size,
                                                 hidden_size,
                                                 num_hidden_layers,
-                                                batch_size,
                                                 kl_min,
                                                 mode,
                                                 k,
                                                 downsample)
                                        )
-                in_channels = self.h_size
 
         self.activation = nn.ELU()
 
@@ -64,15 +64,15 @@ class CVAE(nn.Module):
                                         )
 
     def forward(self, inputs):
-        inputs = torch.tile(inputs, [2, 1, 1, 1])
-
+        inputs = torch.tile(inputs, [self.k, 1, 1, 1])
         h = self.x_enc(inputs)
+
         # Bottom up
         for layer in self.layers:
             for sub_layer in layer:
                 h = sub_layer.up(h)
 
-        h = torch.zeros((self.data_size,
+        h = torch.zeros((inputs.shape[0],
                          self.h_size,
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers)
@@ -110,7 +110,6 @@ class IAFLayer(nn.Module):
                  z_size,
                  h_size,
                  num_hidden_layers,
-                 batch_size,
                  kl_min,
                  mode,
                  k=1,
@@ -125,7 +124,6 @@ class IAFLayer(nn.Module):
         self.h_size = h_size
         self.num_hidden_layers = num_hidden_layers
         self.k = k
-        self.batch_size = batch_size
         self.kl_min = kl_min
 
         # Inference model
@@ -133,12 +131,19 @@ class IAFLayer(nn.Module):
         self.mean_qz, self.log_std_qz, self.up_context = None, None, None  # need to store for bidirectional inference
 
         self.activation = nn.ELU()
+
+        if downsample:
+            down_stride = 2
+        else:
+            down_stride = 1
+
         self.conv2d_up_1 = nn.Conv2d(in_channels,
                                      out_channels=2 * self.z_size + 2 * self.h_size,
-                                     stride=1,
+                                     stride=down_stride,
                                      kernel_size=3,
                                      padding=1,
                                      )
+
         self.conv2d_up_2 = nn.Conv2d(in_channels=self.h_size,
                                      out_channels=self.h_size,
                                      stride=1,
@@ -155,7 +160,7 @@ class IAFLayer(nn.Module):
                                        )
         self.multi_masked_conv2d = AutoregressiveMultiConv2d(in_channels=self.z_size,
                                                              hidden_layers=self.num_hidden_layers * [self.h_size],
-                                                             out_channels=2 * self.z_size)
+                                                             out_channels=self.z_size)
         if downsample:
             self.deconv2d = nn.ConvTranspose2d(in_channels=self.h_size + self.z_size,
                                                out_channels=self.h_size,
@@ -180,9 +185,11 @@ class IAFLayer(nn.Module):
         h = self.conv2d_up_2(h)
         if self.down_sample:
             inputs = F.interpolate(inputs, scale_factor=(0.5, 0.5), mode='nearest')
+
         return inputs + 0.1 * h
 
     def down(self, inputs):
+        data_size = inputs.shape[0] * self.k
         x = self.activation(inputs)
         x = self.conv2d_down_1(x)
         mean_pz, log_std_pz, mean_rz, log_std_rz, down_context, h_det = torch.tensor_split(x, (self.z_size,
@@ -191,12 +198,12 @@ class IAFLayer(nn.Module):
                                                                                                4 * self.z_size,
                                                                                                4 * self.z_size + self.h_size),
                                                                                            dim=1)
-        eps_prior = torch.randn(mean_pz.shape[0], self.z_size, mean_pz.shape[-2], mean_pz.shape[-1])
-        eps_posterior = torch.randn(mean_rz.shape[0], self.z_size, mean_rz.shape[-2], mean_rz.shape[-1])
+        eps_prior = torch.randn(data_size, self.z_size, mean_pz.shape[-2], mean_pz.shape[-1])
+        eps_posterior = torch.randn(data_size, self.z_size, mean_rz.shape[-2], mean_rz.shape[-1])
         prior = mean_pz + eps_prior * torch.exp(log_std_pz)
         mean_posterior = mean_rz + self.mean_qz
         log_std_posterior = self.log_std_qz + log_std_rz
-        posterior = mean_posterior + eps_posterior * log_std_posterior
+        posterior = mean_posterior + eps_posterior * torch.exp(log_std_posterior)
         context = down_context + self.up_context
 
         if self.mode in ['init', 'sample']:
@@ -205,10 +212,11 @@ class IAFLayer(nn.Module):
             z = posterior
 
         if self.mode == 'sample':
-            kl_cost = kl_obj = torch.zeros((self.batch_size * self.k))
+            kl_cost = kl_obj = torch.zeros(data_size)
         else:
             log_qz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_posterior), 2)) + torch.pow(
                 z - mean_posterior, 2) / torch.exp(log_std_posterior))  # posterior loss
+
             arw_mean, arw_log_std = self.multi_masked_conv2d(z, context)
             z = (z - arw_mean) / torch.exp(arw_log_std)
             log_qz += arw_log_std
@@ -220,13 +228,13 @@ class IAFLayer(nn.Module):
 
             if self.kl_min > 0:
                 kl_obj = kl_cost.sum(dim=(2, 3)).mean(0, keepdim=True)
-                kl_obj = torch.maximum(kl_obj, self.kl_min)
+                kl_obj = kl_obj.clamp(min=self.kl_min)
                 kl_obj = kl_obj.sum()
-                kl_obj = torch.tile(kl_obj, [self.batch_size * self.k])
+                kl_obj = torch.tile(kl_obj, [data_size])
             else:
                 kl_obj = kl_cost.sum(dim=(1, 2, 3))
 
-            kl_cost = kl_cost.sum(dim=(1,2,3))
+            kl_cost = kl_cost.sum(dim=(1, 2, 3))
 
         h = torch.cat((z, h_det), dim=1)
         h = self.activation(h)
@@ -236,7 +244,8 @@ class IAFLayer(nn.Module):
         else:
             h = self.conv2d_down_2(h)
         output = inputs + 0.1 * h
-        return output, kl_obj, kl_cost  # (h_size, ..., ...), (B, ), (z_size, ..., ...)
+
+        return output, kl_obj, kl_cost
 
 
 class AutoregressiveMultiConv2d(nn.Module):
@@ -247,42 +256,71 @@ class AutoregressiveMultiConv2d(nn.Module):
                  ):
         super(AutoregressiveMultiConv2d, self).__init__()
 
-        self.MaskedLayers = nn.Sequential(*[
-            MaskedConv2d(in_channel, out_channel, diag_mask=False)
+        self.MaskedLayers = nn.ModuleList([
+            MaskedConv2d(diag_mask=False,
+                         in_channels=in_channel,
+                         out_channels=out_channel,
+                         kernel_size=3,
+                         padding=1,
+                         stride=1,
+                         )
             for in_channel, out_channel in zip([in_channels] + hidden_layers[:-1], hidden_layers)
         ])
 
-        self.MaskedConv2dMean = MaskedConv2d(in_channels=hidden_layers[-1],
+        self.MaskedConv2dMean = MaskedConv2d(diag_mask=True,
+                                             in_channels=hidden_layers[-1],
                                              out_channels=out_channels,
-                                             diag_mask=True,
+                                             kernel_size=3,
+                                             padding=1,
+                                             stride=1,
                                              )
-        self.MaskedConv2dStd = MaskedConv2d(in_channels=hidden_layers[-1],
+        self.MaskedConv2dStd = MaskedConv2d(diag_mask=True,
+                                            in_channels=hidden_layers[-1],
                                             out_channels=out_channels,
-                                            diag_mask=True,
+                                            kernel_size=3,
+                                            padding=1,
+                                            stride=1,
                                             )
 
     def forward(self, inputs, context):
-        x = self.MaskedLayers(inputs, context)
-        mean = self.MaskedConv2dMean(x)
-        std = self.MaskedConv2dStd(x)
+        for layer in self.MaskedLayers:
+            inputs, context = layer(inputs, context)
+        mean, _ = self.MaskedConv2dMean(inputs)
+        std, _ = self.MaskedConv2dStd(inputs)
+
         return mean, std
 
 
-class MaskedConv2d(nn.Module):
+class MaskedConv2d(nn.Conv2d):
     def __init__(self,
-                 in_channels,
-                 out_channels,
-                 stride=1,
-                 kernel_size=3,
-                 padding=1,
                  diag_mask=False,
+                 *args,
+                 **kwargs,
                  ):
-        super(MaskedConv2d, self).__init__()
-        self.conv2d = nn.Conv2d(in_channels, out_channels, stride=stride, kernel_size=kernel_size, padding=padding)
-        mask = get_conv_ar_mask(kernel_size, kernel_size, in_channels, out_channels, zerodiagonal=diag_mask)
-        mask = mask.reshape(out_channels, in_channels, kernel_size, kernel_size)
+        super(MaskedConv2d, self).__init__(*args, **kwargs)
+        mask = get_conv_ar_mask(self.kernel_size[0], self.kernel_size[0], self.in_channels, self.out_channels,
+                                zerodiagonal=diag_mask)
+        mask = mask.reshape(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[0])
         self.register_buffer('mask', mask)
         self.elu = nn.ELU()
 
-    def forward(self, inputs, context):
-        return self.elu(context + F.conv2d(inputs, self.mask * self.conv2d.weight, self.conv2d.bias))
+    def forward(self, inputs, context=None):
+        inputs = self._conv_forward(inputs, self.mask * self.weight, self.bias)
+        if context is not None:
+            inputs += context
+        return self.elu(inputs), context
+
+
+model = CVAE(
+    in_channels=3,
+    hidden_size=160,
+    z_size=32,
+    batch_size=64,
+    k=1,
+    kl_min=0.25,
+    num_hidden_layers=2,
+    num_blocks=2,
+    image_size=32,
+    mode='train',
+)
+summary(model, (3, 32, 32))
