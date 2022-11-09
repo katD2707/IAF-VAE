@@ -34,6 +34,7 @@ def train(params):
     # Get data loader
     train_loader, val_loader = dataset.get_dataloader(params.dataset.batch_size,
                                                       num_workers=params.dataset.num_workers,
+                                                      pin_memory=True,
                                                       )
 
     # Get model

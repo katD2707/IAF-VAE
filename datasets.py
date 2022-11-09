@@ -30,12 +30,14 @@ class Cifar10:
                        shuffle=True,
                        drop_last=True,
                        num_workers=2,
+                       pin_memory=True,
                        ):
         train_loader = torch.utils.data.DataLoader(self.trainset,
                                                    batch_size=batch_size,
                                                    shuffle=shuffle,
                                                    num_workers=num_workers,
                                                    drop_last=drop_last,
+                                                   pin_memory=pin_memory,
                                                    )
         if self.val:
             test_loader = torch.utils.data.DataLoader(self.testset,
@@ -43,6 +45,7 @@ class Cifar10:
                                                       shuffle=shuffle,
                                                       num_workers=num_workers,
                                                       drop_last=drop_last,
+                                                      pin_memory=pin_memory,
                                                       )
             return train_loader, test_loader
 
