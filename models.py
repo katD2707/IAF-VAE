@@ -199,8 +199,8 @@ class IAFLayer(nn.Module):
                                                                                                4 * self.z_size,
                                                                                                4 * self.z_size + self.h_size),
                                                                                            dim=1)
-        eps_prior = torch.randn(data_size, self.z_size, mean_pz.shape[-2], mean_pz.shape[-1])
-        eps_posterior = torch.randn(data_size, self.z_size, mean_rz.shape[-2], mean_rz.shape[-1])
+        eps_prior = torch.randn(data_size, self.z_size, mean_pz.shape[-2], mean_pz.shape[-1]).to(inputs.device)
+        eps_posterior = torch.randn(data_size, self.z_size, mean_rz.shape[-2], mean_rz.shape[-1]).to(inputs.device)
         prior = mean_pz + eps_prior * torch.exp(log_std_pz)
         mean_posterior = mean_rz + self.mean_qz
         log_std_posterior = self.log_std_qz + log_std_rz
@@ -213,7 +213,7 @@ class IAFLayer(nn.Module):
             z = posterior
 
         if self.mode == 'sample':
-            kl_cost = kl_obj = torch.zeros(data_size)
+            kl_cost = kl_obj = torch.zeros(data_size).to(inputs.device)
         else:
             log_qz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_posterior), 2)) + torch.pow(
                 z - mean_posterior, 2) / torch.exp(log_std_posterior))  # posterior loss
@@ -312,16 +312,16 @@ class MaskedConv2d(nn.Conv2d):
         return self.elu(inputs), context
 
 
-model = CVAE(
-    in_channels=3,
-    hidden_size=160,
-    z_size=32,
-    batch_size=64,
-    k=1,
-    kl_min=0.25,
-    num_hidden_layers=2,
-    num_blocks=2,
-    image_size=32,
-    mode='train',
-)
-summary(model, (3, 32, 32))
+# model = CVAE(
+#     in_channels=3,
+#     hidden_size=160,
+#     z_size=32,
+#     batch_size=64,
+#     k=1,
+#     kl_min=0.25,
+#     num_hidden_layers=2,
+#     num_blocks=2,
+#     image_size=32,
+#     mode='train',
+# )
+# summary(model, (3, 32, 32))
