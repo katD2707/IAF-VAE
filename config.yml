@@ -20,7 +20,7 @@ training:
   checkpoints_path: "./checkpoints"
   checkpoints_frequency: 1 # epochs
   batch_size: 8
-  epochs: 250
+  n_epochs: 250
   loss: "arc"
 
 validation:
