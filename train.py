@@ -26,7 +26,7 @@ def train(params):
     # Get data
     dataset = datasets.Cifar10(train=True,
                                val=True,
-                               root=params.generic.data_path,
+                               root=params.dataset.data_path,
                                transform_train=transform,
                                transform_val=transform,
                                download=True,
@@ -51,8 +51,8 @@ def train(params):
     model.to(device)
 
     # spawn writer
-    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.model.num_blocks, params.model.num_hidden_layers, params.model.z_size, args.h_size,
-                                                                params.model.batch_size, model.training.optimizer.learning_rate)
+    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.model.num_blocks, params.model.num_hidden_layers, params.model.z_size, params.model.h_size,
+                                                                params.dataset.batch_size, params.training.optimizer.learning_rate)
 
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params.training.optimizer.learning_rate)
