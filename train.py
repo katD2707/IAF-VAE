@@ -51,7 +51,7 @@ def train(params):
     model.to(device)
 
     # spawn writer
-    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params['model']['num_blocks'], params['model']['num_hidden_layers'], params['model']['z_size'], params['model']['h_size'],
+    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params['model']['num_blocks'], params['model']['num_hidden_layers'], params['model']['z_size'], params['model']['hidden_size'],
                                                                 params['dataset']['batch_size'], params['training']['optimizer']['learning_rate'])
 
     # Optimizer
@@ -96,7 +96,7 @@ def train(params):
 
 if __name__ == "__main__":
     # Parse parameters
-    parser = ArgumentParser(description=" train ResnetVAE model")
+    parser = ArgumentParser(description="train ResnetVAE model")
     parser.add_argument(
         "-p",
         "--config_path",
@@ -108,5 +108,5 @@ if __name__ == "__main__":
     with open(args.config_path, "r") as params:
         args = yaml.load(params, Loader=yaml.FullLoader)
 
-    print(params)
-    train(params)
+    print(args)
+    train(args)
