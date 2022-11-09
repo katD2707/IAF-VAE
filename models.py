@@ -37,21 +37,22 @@ class CVAE(nn.Module):
                                )
 
         # Inference and generative
-        self.layers = []
+        layers = []
         for i in range(num_hidden_layers):
-            self.layers.append([])
+            layer = []
             for j in range(num_blocks):
                 downsample = (i > 0) and (j == 0)
-                self.layers[-1].append(IAFLayer(self.h_size,
-                                                z_size,
-                                                hidden_size,
-                                                num_hidden_layers,
-                                                kl_min,
-                                                mode,
-                                                k,
-                                                downsample)
-                                       )
-
+                layer.append(IAFLayer(hidden_size,
+                                      z_size,
+                                      hidden_size,
+                                      num_hidden_layers,
+                                      kl_min,
+                                      mode,
+                                      k,
+                                      downsample)
+                             )
+            layers.append(nn.ModuleList(layer))
+        self.layers = nn.ModuleList(layers)
         self.activation = nn.ELU()
 
         # Decoder output
