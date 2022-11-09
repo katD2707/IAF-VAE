@@ -28,38 +28,6 @@ validation:
   enabled: true
   every: 4 # epochs
   batch_size: 8
-  num_utterances_per_speaker: 10
-
-test:
-  enabled: true
-  mindcf_p_target: 0.01
-  mindcf_c_fa: 1
-  mindcf_c_miss: 1
-  num_speakers: 10
-  num_utterances_per_speaker: 10
-
-loss:
-  sphere:
-    margin: 4
-  cos:
-    margin: 0.2
-    scale: 64
-  arc:
-    margin: 0.2
-    scale: 30
-
-dumb:
-  enabled: false
-  n_layers: 10
-  hidden_size: 256
-
-titanet:
-  enabled: true
-  model_size: "l"
-  n_mega_blocks: 3
-  attention_hidden_size: 640
-  simple_pool: false
-  dropout: 0.1
 
 baseline:
   enabled: false
@@ -68,42 +36,8 @@ baseline:
   segment_length: 160
   average: True
 
-#wandb:
-#  enabled: false
-#  project: "titanet-test"
-#  entity: "d-yukito"
-#  api_key_file: "./init/wandb_api_key_file"
 
 generic:
   seed: 0
   workers: 2
 
-audio:
-  sample_rate: 16000
-  spectrogram:
-    n_fft: 512
-    win_length: 25 # ms
-    hop_length: 10 # ms
-    n_mels: 80
-
-augmentation:
-  probability: 0.5
-  enable:
-    - "chunk"
-    #- "specaugment"
-  rir:
-    corpora_path: "./data/rirs"
-  chunk:
-    max_length: 3 # s
-    lengths:
-      - 1.5
-      - 2
-      - 3
-  speed:
-    min: 0.95
-    max: 1.05
-  specaugment:
-    freq_mask_ratio: 0.35
-    freq_mask_num: 1
-    time_mask_ratio: 0.15
-    time_mask_num: 1
