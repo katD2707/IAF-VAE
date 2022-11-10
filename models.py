@@ -58,10 +58,9 @@ class CVAE(nn.Module):
         # Decoder output
         self.x_dec = nn.ConvTranspose2d(in_channels=self.h_size,
                                         out_channels=3,
-                                        kernel_size=5,
+                                        kernel_size=4,
                                         stride=2,
-                                        padding=2,
-                                        output_padding=1,
+                                        padding=1,
                                         )
 
     def forward(self, inputs):
@@ -77,7 +76,7 @@ class CVAE(nn.Module):
                          self.h_size,
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers)
-                         ))
+                         )).to(inputs.device)
         kl_cost = kl_obj = 0.
 
         # Top down
@@ -138,44 +137,49 @@ class IAFLayer(nn.Module):
         else:
             down_stride = 1
 
-        self.conv2d_up_1 = nn.Conv2d(in_channels,
-                                     out_channels=2 * self.z_size + 2 * self.h_size,
-                                     stride=down_stride,
-                                     kernel_size=3,
-                                     padding=1,
-                                     )
+        self.conv2d_up_1 = nn.utils.weight_norm(nn.Conv2d(in_channels,
+                                                          out_channels=2 * self.z_size + 2 * self.h_size,
+                                                          stride=down_stride,
+                                                          kernel_size=3,
+                                                          padding=1,
+                                                          )
+                                                )
 
-        self.conv2d_up_2 = nn.Conv2d(in_channels=self.h_size,
-                                     out_channels=self.h_size,
-                                     stride=1,
-                                     kernel_size=3,
-                                     padding=1,
-                                     )
+        self.conv2d_up_2 = nn.utils.weight_norm(nn.Conv2d(in_channels=self.h_size,
+                                                          out_channels=self.h_size,
+                                                          stride=1,
+                                                          kernel_size=3,
+                                                          padding=1,
+                                                          )
+                                                )
 
         # Generative model
-        self.conv2d_down_1 = nn.Conv2d(in_channels=in_channels,
-                                       out_channels=4 * self.z_size + 2 * self.h_size,
-                                       stride=1,
-                                       kernel_size=3,
-                                       padding=1,
-                                       )
+        self.conv2d_down_1 = nn.utils.weight_norm(nn.Conv2d(in_channels=in_channels,
+                                                            out_channels=4 * self.z_size + 2 * self.h_size,
+                                                            stride=1,
+                                                            kernel_size=3,
+                                                            padding=1,
+                                                            )
+                                                  )
         self.multi_masked_conv2d = AutoregressiveMultiConv2d(in_channels=self.z_size,
                                                              hidden_layers=self.num_hidden_layers * [self.h_size],
                                                              out_channels=self.z_size)
         if downsample:
-            self.deconv2d = nn.ConvTranspose2d(in_channels=self.h_size + self.z_size,
-                                               out_channels=self.h_size,
-                                               kernel_size=3,
-                                               stride=2,
-                                               padding=1,
-                                               output_padding=1,
-                                               )
+            self.deconv2d = nn.utils.weight_norm(nn.ConvTranspose2d(in_channels=self.h_size + self.z_size,
+                                                                    out_channels=self.h_size,
+                                                                    kernel_size=3,
+                                                                    stride=2,
+                                                                    padding=1,
+                                                                    output_padding=1,
+                                                                    )
+                                                 )
         else:
-            self.conv2d_down_2 = nn.Conv2d(self.h_size + self.z_size,
-                                           self.h_size,
-                                           kernel_size=3,
-                                           padding=1,
-                                           )
+            self.conv2d_down_2 = nn.utils.weight_norm(nn.Conv2d(self.h_size + self.z_size,
+                                                                self.h_size,
+                                                                kernel_size=3,
+                                                                padding=1,
+                                                                )
+                                                      )
 
     def up(self, inputs):
         h = self.activation(inputs)
@@ -310,7 +314,6 @@ class MaskedConv2d(nn.Conv2d):
         if context is not None:
             inputs += context
         return self.elu(inputs), context
-
 
 # model = CVAE(
 #     in_channels=3,
