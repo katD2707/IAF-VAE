@@ -168,9 +168,9 @@ if __name__ == "__main__":
         required=True,
         type=str,
     )
-    parser.add_argument(
-        "save"
-    )
+    # parser.add_argument(
+    #     "save"
+    # )
     args = parser.parse_args()
     with open(args.config_path, "r") as params:
         args = yaml.load(params, Loader=yaml.FullLoader)
