@@ -77,3 +77,6 @@ def reset_log():
         logs[name] = []
     return logs
 
+
+def scale_inv(images):
+    return images + 0.5

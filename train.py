@@ -7,7 +7,7 @@ import utils, datasets, models
 import numpy as np
 import os
 from tensorboardX import SummaryWriter
-
+from torchvision.utils import save_image
 
 def train(params):
     # Set random seed for reproducibility
@@ -51,7 +51,6 @@ def train(params):
                         num_blocks=params['model']['num_blocks'],
                         image_size=params['dataset']['image_size'],
                         )
-    model.to(device)
 
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params['training']['optimizer']['learning_rate'])
@@ -72,6 +71,12 @@ def train(params):
     print('logging into %s' % log_dir)
     utils.maybe_create_dir(sample_dir)
     best_test = float('inf')
+
+    if params['training']['current_checkpoint'] is not None:
+        checkpoint = torch.load(params['training']['current_checkpoint'])
+        model.load_state_dict(checkpoint['model'])
+        start_epoch = checkpoint['epoch']
+    model.to(device)
 
     print('Start training...')
     for epoch in range(start_epoch, params['training']['n_epochs']):
@@ -102,17 +107,54 @@ def train(params):
         print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {losses/len(train_loader)} |'
               f'Bits/Dim: {avg_bpd/len(train_loader)}')
 
-        loss = 0.
-        bpd = 0.
-        elbo = 0.
-        step = 0
         model.eval()
-        for batch_idx, (inputs, _) in enumerate(val_loader):
-            inputs = inputs.cuda()
-            x, obj, loss = model(inputs)
-            step += 1
-            obj = obj / x.shape[0]
-            bpd = loss / (params.dataset.image_size ** 2 * 3 * np.log(2.))
+        losses = 0.
+        avg_bpd = 0.
+        test_log = utils.reset_log()
+
+        with torch.no_grad():
+            for batch_idx, (inputs, _) in enumerate(val_loader):
+                inputs = inputs.cuda()
+                x, loss, elbo = model(inputs)
+
+                loss = loss / x.shape[0]
+                losses += loss
+                bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+                avg_bpd += bpd
+
+                train_log['bpd'] += [bpd]
+                train_log['elbo'] += [elbo]
+
+            all_samples = model.cond_sample(input)
+            # save reconstructions
+            out = torch.stack((x, input))  # 2, bs, 3, 32, 32
+            out = out.transpose(1, 0).contiguous()  # bs, 2, 3, 32, 32
+            out = out.view(-1, x.size(-3), x.size(-2), x.size(-1))
+
+            all_samples += [x]
+            all_samples = torch.stack(all_samples)  # L, bs, 3, 32, 32
+            all_samples = all_samples.transpose(1, 0)
+            all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
+            all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
+
+            save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)), nrow=12)
+            save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
+            save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
+
+        # Save model checkpoint
+        state_dict = {
+            "model": model.state_dict(),
+            "epoch": epoch,
+        }
+
+        if (epoch + 1) % params.training.checkpoints_frequency == 0 or epoch == 0:
+            torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch+1}'))
+
+        current_test = sum(test_log['bpd']) / batch_idx
+        if current_test < best_test:
+            best_test = current_test
+            print('saving best model')
+            torch.save(model.state_dict(), os.path.join(log_dir, 'best_model.pth'))
 
 
 if __name__ == "__main__":

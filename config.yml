@@ -17,10 +17,12 @@ training:
   optimizer:
     learning_rate: 0.001
 
-  checkpoints_path: "./checkpoints"
-  checkpoints_frequency: 1 # epochs
+  checkpoints_frequency: 40 # epochs
   batch_size: 8
-  n_epochs: 250
+  n_epochs: 1000
+
+save_model:
+  checkpoint_path: "./"
 
 
 validation:
