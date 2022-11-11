@@ -266,14 +266,13 @@ class IAFLayer(nn.Module):
             kl_cost = kl_obj = torch.zeros(data_size).to(inputs.device)
         else:
             log_qz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_posterior), 2)) + torch.pow(
-                z - mean_posterior, 2) / torch.exp(log_std_posterior))  # posterior loss
+                z - mean_posterior, 2) / torch.pow(torch.exp(log_std_posterior), 2))  # posterior loss
 
             arw_mean, arw_log_std = self.multi_masked_conv2d(z, context)
             z = (z - arw_mean) / torch.exp(arw_log_std)
             log_qz += arw_log_std
-            log_pz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_pz), 2)) + torch.pow(z - mean_pz,
-                                                                                                    2) / torch.exp(
-                log_std_pz))
+            log_pz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_pz), 2)) +
+                             torch.pow(z - mean_pz, 2) / torch.pow(torch.exp(log_std_pz), 2))
 
             kl_cost = log_qz - log_pz
 
@@ -285,7 +284,7 @@ class IAFLayer(nn.Module):
             else:
                 kl_obj = kl_cost.sum(dim=(1, 2, 3))
 
-            kl = kl_cost.sum(dim=(1, 2, 3))
+            kl_cost = kl_cost.sum(dim=(1, 2, 3))
 
         h = torch.cat((z, h_det), dim=1)
         h = self.activation(h)
@@ -296,7 +295,7 @@ class IAFLayer(nn.Module):
             h = self.conv2d_down_2(h)
         output = inputs + 0.1 * h
 
-        return output, kl_obj, kl
+        return output, kl_obj, kl_cost
 
 
 class AutoregressiveMultiConv2d(nn.Module):

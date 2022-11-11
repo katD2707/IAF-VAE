@@ -72,6 +72,7 @@ def train(params):
     utils.maybe_create_dir(sample_dir)
     best_test = float('inf')
 
+    start_epoch = 0
     if params['training']['current_checkpoint'] is not None:
         checkpoint = torch.load(params['training']['current_checkpoint'])
         model.load_state_dict(checkpoint['model'])
@@ -101,11 +102,11 @@ def train(params):
             train_log['elbo'] += [elbo]
 
             if batch_idx % 25 == 0:
-                print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss} |'
-                      f'Bits/Dim: {bpd/batch_idx+1}')
+                print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
+                      f'Bits/Dim: {bpd/batch_idx+1:.2f}')
 
-        print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {losses/len(train_loader)} |'
-              f'Bits/Dim: {avg_bpd/len(train_loader)}')
+        print(f'===> Epoch: {epoch + 1} | Loss: {losses/len(train_loader):.2f} | '
+              f'Bits/Dim: {avg_bpd/len(train_loader):.2f}')
 
         model.eval()
         losses = 0.
@@ -125,21 +126,21 @@ def train(params):
                 train_log['bpd'] += [bpd]
                 train_log['elbo'] += [elbo]
 
-            all_samples = model.cond_sample(input)
-            # save reconstructions
-            out = torch.stack((x, input))  # 2, bs, 3, 32, 32
-            out = out.transpose(1, 0).contiguous()  # bs, 2, 3, 32, 32
-            out = out.view(-1, x.size(-3), x.size(-2), x.size(-1))
+                all_samples = model.cond_sample(inputs)
+                # save reconstructions
+                out = torch.stack((x, inputs))  # 2, bs, 3, 32, 32
+                out = out.transpose(1, 0).contiguous()  # bs, 2, 3, 32, 32
+                out = out.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-            all_samples += [x]
-            all_samples = torch.stack(all_samples)  # L, bs, 3, 32, 32
-            all_samples = all_samples.transpose(1, 0)
-            all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
-            all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
+                all_samples += [x]
+                all_samples = torch.stack(all_samples)  # L, bs, 3, 32, 32
+                all_samples = all_samples.transpose(1, 0)
+                all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
+                all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-            save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)), nrow=12)
-            save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
-            save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
+                save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)), nrow=12)
+                save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
+                save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
 
         # Save model checkpoint
         state_dict = {
@@ -166,6 +167,9 @@ if __name__ == "__main__":
         help="path to the config file",
         required=True,
         type=str,
+    )
+    parser.add_argument(
+        "save"
     )
     args = parser.parse_args()
     with open(args.config_path, "r") as params:
