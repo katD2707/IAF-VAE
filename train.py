@@ -5,6 +5,9 @@ import yaml
 from torchvision import transforms
 import utils, datasets, models
 import numpy as np
+import os
+from tensorboardX import SummaryWriter
+
 
 def train(params):
     # Set random seed for reproducibility
@@ -20,7 +23,7 @@ def train(params):
     # Get transform
     transform = transforms.Compose([
         transforms.ToTensor(),
-        lambda x: x-0.5,
+        lambda x: x - 0.5,
     ])
 
     # Get data
@@ -50,36 +53,54 @@ def train(params):
                         )
     model.to(device)
 
-    # spawn writer
-    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params['model']['num_blocks'], params['model']['num_hidden_layers'], params['model']['z_size'], params['model']['hidden_size'],
-                                                                params['dataset']['batch_size'], params['training']['optimizer']['learning_rate'])
-
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params['training']['optimizer']['learning_rate'])
 
+    # spawn writer
+    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params['model']['num_blocks'],
+                                                     params['model']['num_hidden_layers'], params['model']['z_size'],
+                                                     params['model']['hidden_size'],
+                                                     params['dataset']['batch_size'],
+                                                     params['training']['optimizer']['learning_rate'])
+
+    log_dir = os.path.join('runs', model_name)
+    sample_dir = os.path.join(log_dir, 'samples')
+    writer = SummaryWriter(log_dir=log_dir)
+    utils.maybe_create_dir(sample_dir)
+
+    utils.print_and_save_args(args, log_dir)
+    print('logging into %s' % log_dir)
+    utils.maybe_create_dir(sample_dir)
+    best_test = float('inf')
+
     print('Start training...')
-    for epoch in range(params['training']['n_epochs']):
+    for epoch in range(start_epoch, params['training']['n_epochs']):
         model.train()
-        loss = 0.
-        bpd = 0.
-        elbo = 0.
-        step = 0
+        losses = 0.
+        avg_bpd = 0.
+        train_log = utils.reset_log()
 
         for batch_idx, (inputs, _) in enumerate(train_loader):
             inputs = inputs.cuda()
-            x, obj, loss = model(inputs)
-            step += 1
-            obj = obj / x.shape[0]
-            bpd = loss / (params['dataset']['image_size']**2*3*np.log(2.))
+            x, loss, elbo = model(inputs)
 
-            loss += obj
+            loss = loss / x.shape[0]
+            losses += loss
+            bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+            avg_bpd += bpd
             optimizer.zero_grad()
-            obj.backward()
+            loss.backward()
             optimizer.step()
 
+            train_log['bpd'] += [bpd]
+            train_log['elbo'] += [elbo]
+
             if batch_idx % 25 == 0:
-                print(f'Epoch: {epoch+1} | Step: {batch_idx+1}/{len(train_loader)} | Loss: {loss/step} |'
-                      f'Bits/Dim: {bpd}')
+                print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss} |'
+                      f'Bits/Dim: {bpd/batch_idx+1}')
+
+        print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {losses/len(train_loader)} |'
+              f'Bits/Dim: {avg_bpd/len(train_loader)}')
 
         loss = 0.
         bpd = 0.

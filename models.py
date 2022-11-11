@@ -16,13 +16,11 @@ class CVAE(nn.Module):
                  num_hidden_layers,
                  num_blocks,
                  image_size,
-                 mode='train',
                  *args,
                  **kwargs):
         super(CVAE, self).__init__()
         self.h_size = hidden_size
         self.z_size = z_size
-        self.mode = mode
         self.image_size = image_size
         self.k = k
 
@@ -47,7 +45,6 @@ class CVAE(nn.Module):
                                       hidden_size,
                                       num_hidden_layers,
                                       kl_min,
-                                      mode,
                                       k,
                                       downsample)
                              )
@@ -77,17 +74,14 @@ class CVAE(nn.Module):
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers)
                          )).to(inputs.device)
-        kl_cost = kl_obj = 0.
+        kl = kl_obj = 0.
 
         # Top down
         for layer in reversed(self.layers):
             for sub_layer in reversed(layer):
                 h, cur_obj, cur_cost = sub_layer.down(h)
                 kl_obj += cur_obj
-                kl_cost += cur_cost
-
-                # tensorboard implementation
-                # if self.mode == "train":
+                kl += cur_cost
 
         h = self.activation(h)
         h = self.x_dec(h)
@@ -96,12 +90,65 @@ class CVAE(nn.Module):
         log_pxz = discretized_logistic(h, self.dec_log_stdv, sample=inputs)
         obj = (kl_obj - log_pxz).sum()
 
-        # tensorboard implementation
-        # if self.mode == 'train':
+        elbo = compute_lowerbound(log_pxz, kl, self.k).sum()
 
-        loss = compute_lowerbound(log_pxz, kl_cost, self.k).sum()
+        return h, obj, elbo
 
-        return h, obj, loss
+    def sample(self, n_samples=64):
+        h = torch.zeros((n_samples * self.k,
+                         self.h_size,
+                         self.image_size // 2 ** len(self.layers),
+                         self.image_size // 2 ** len(self.layers),
+                         )).to(self.device)
+
+        for layer in reversed(self.layers):
+            for sub_layer in reversed(layer):
+                h, _, _ = sub_layer.down(h, mode='sample')
+
+        h = F.elu(h)
+        h = self.last_conv(h)
+
+        return h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
+
+    def cond_sample(self, inputs):
+        # assumes input is \in [-0.5, 0.5]
+        inputs = torch.tile(inputs, [self.k, 1, 1, 1])
+        h = self.x_enc(inputs)
+
+        for layer in self.layers:
+            for sub_layer in layer:
+                h = sub_layer.up(h)
+
+        h = torch.zeros((inputs.size[0],
+                         self.h_size,
+                         self.image_size // 2 ** len(self.layers),
+                         self.image_size // 2 ** len(self.layers),
+                         )).to(self.device)
+        kl_cost, kl_obj = 0., 0.
+        outs = []
+
+        current = 0
+        for i, layer in enumerate(reversed(self.layers)):
+            for j, sub_layer in enumerate(reversed(layer)):
+                h, _, _ = sub_layer.down(h)
+
+                again = 0
+                # now, sample the rest of the way:
+                for layer_ in reversed(self.layers):
+                    for sub_layer_ in reversed(layer_):
+                        if again > current:
+                            h, _, _ = sub_layer_.down(h, mode='sample')
+
+                        again += 1
+
+                h = F.elu(h)
+                h = self.last_conv(h)
+                h = h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
+                outs += [h]
+
+                current += 1
+
+        return outs
 
 
 class IAFLayer(nn.Module):
@@ -111,14 +158,13 @@ class IAFLayer(nn.Module):
                  h_size,
                  num_hidden_layers,
                  kl_min,
-                 mode,
                  k=1,
                  downsample=False,
                  *args,
                  **kwargs,
                  ):
         super(IAFLayer, self).__init__()
-        self.mode = mode
+
         self.down_sample = downsample
         self.z_size = z_size
         self.h_size = h_size
@@ -193,7 +239,7 @@ class IAFLayer(nn.Module):
 
         return inputs + 0.1 * h
 
-    def down(self, inputs):
+    def down(self, inputs, mode='train'):
         data_size = inputs.shape[0] * self.k
         x = self.activation(inputs)
         x = self.conv2d_down_1(x)
@@ -211,12 +257,12 @@ class IAFLayer(nn.Module):
         posterior = mean_posterior + eps_posterior * torch.exp(log_std_posterior)
         context = down_context + self.up_context
 
-        if self.mode in ['init', 'sample']:
+        if mode in ['init', 'sample']:
             z = prior
         else:
             z = posterior
 
-        if self.mode == 'sample':
+        if mode == 'sample':
             kl_cost = kl_obj = torch.zeros(data_size).to(inputs.device)
         else:
             log_qz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_posterior), 2)) + torch.pow(
@@ -239,7 +285,7 @@ class IAFLayer(nn.Module):
             else:
                 kl_obj = kl_cost.sum(dim=(1, 2, 3))
 
-            kl_cost = kl_cost.sum(dim=(1, 2, 3))
+            kl = kl_cost.sum(dim=(1, 2, 3))
 
         h = torch.cat((z, h_det), dim=1)
         h = self.activation(h)
@@ -250,7 +296,7 @@ class IAFLayer(nn.Module):
             h = self.conv2d_down_2(h)
         output = inputs + 0.1 * h
 
-        return output, kl_obj, kl_cost
+        return output, kl_obj, kl
 
 
 class AutoregressiveMultiConv2d(nn.Module):
