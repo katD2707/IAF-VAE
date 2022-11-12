@@ -16,6 +16,7 @@ class CVAE(nn.Module):
                  num_hidden_layers,
                  num_blocks,
                  image_size,
+                 device='cpu',
                  *args,
                  **kwargs):
         super(CVAE, self).__init__()
@@ -23,6 +24,7 @@ class CVAE(nn.Module):
         self.z_size = z_size
         self.image_size = image_size
         self.k = k
+        self.device = device
 
         self.register_parameter('dec_log_stdv', torch.nn.Parameter(torch.Tensor([0.])))
 
@@ -123,7 +125,7 @@ class CVAE(nn.Module):
                          self.h_size,
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers),
-                         )).to(inputs.device)
+                         )).to(self.device)
         kl_cost, kl_obj = 0., 0.
         outs = []
 
@@ -138,7 +140,7 @@ class CVAE(nn.Module):
                 for layer_ in reversed(self.layers):
                     for sub_layer_ in reversed(layer_):
                         if again > current:
-                            h_copy, _, _ = sub_layer_.down(h, mode='sample')
+                            h_copy, _, _ = sub_layer_.down(h_copy, mode='sample')
 
                         again += 1
 

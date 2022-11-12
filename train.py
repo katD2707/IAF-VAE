@@ -50,6 +50,7 @@ def train(params):
                         num_hidden_layers=params['model']['num_hidden_layers'],
                         num_blocks=params['model']['num_blocks'],
                         image_size=params['dataset']['image_size'],
+                        device=device,
                         )
 
     # Optimizer
