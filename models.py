@@ -123,7 +123,7 @@ class CVAE(nn.Module):
                          self.h_size,
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers),
-                         )).to(self.device)
+                         )).to(inputs.device)
         kl_cost, kl_obj = 0., 0.
         outs = []
 
@@ -142,7 +142,7 @@ class CVAE(nn.Module):
                         again += 1
 
                 h = F.elu(h)
-                h = self.last_conv(h)
+                h = self.x_dec(h)
                 h = h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
                 outs += [h]
 

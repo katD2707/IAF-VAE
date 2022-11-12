@@ -92,7 +92,7 @@ def train(params):
 
             loss = loss / x.shape[0]
             losses += loss
-            bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+            bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.) * x.shape[0])
             avg_bpd += bpd
             optimizer.zero_grad()
             loss.backward()
@@ -103,7 +103,7 @@ def train(params):
 
             if batch_idx % 25 == 0:
                 print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
-                      f'Bits/Dim: {bpd/batch_idx+1:.2f}')
+                      f'Bits/Dim: {bpd:.2f}')
 
         print(f'===> Epoch: {epoch + 1} | Loss: {losses/len(train_loader):.2f} | '
               f'Bits/Dim: {avg_bpd/len(train_loader):.2f}')
@@ -120,7 +120,7 @@ def train(params):
 
                 loss = loss / x.shape[0]
                 losses += loss
-                bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+                bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.) * inputs.size(0))
                 avg_bpd += bpd
 
                 train_log['bpd'] += [bpd]
@@ -142,6 +142,9 @@ def train(params):
                 save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
                 save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
 
+            print(f'===> Epoch: {epoch + 1} | Loss: {losses / len(train_loader):.2f} | '
+                  f'Bits/Dim: {avg_bpd / len(train_loader):.2f}')
+
         # Save model checkpoint
         state_dict = {
             "model": model.state_dict(),
@@ -151,7 +154,7 @@ def train(params):
         if (epoch + 1) % params.training.checkpoints_frequency == 0 or epoch == 0:
             torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch+1}'))
 
-        current_test = sum(test_log['bpd']) / batch_idx
+        current_test = sum(test_log['bpd']) / len(val_loader)
         if current_test < best_test:
             best_test = current_test
             print('saving best model')
