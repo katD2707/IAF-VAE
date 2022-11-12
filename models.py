@@ -119,7 +119,7 @@ class CVAE(nn.Module):
             for sub_layer in layer:
                 h = sub_layer.up(h)
 
-        h = torch.zeros((inputs.size[0],
+        h = torch.zeros((inputs.size(0),
                          self.h_size,
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers),
@@ -132,19 +132,20 @@ class CVAE(nn.Module):
             for j, sub_layer in enumerate(reversed(layer)):
                 h, _, _ = sub_layer.down(h)
 
+                h_copy = h
                 again = 0
                 # now, sample the rest of the way:
                 for layer_ in reversed(self.layers):
                     for sub_layer_ in reversed(layer_):
                         if again > current:
-                            h, _, _ = sub_layer_.down(h, mode='sample')
+                            h_copy, _, _ = sub_layer_.down(h, mode='sample')
 
                         again += 1
 
-                h = F.elu(h)
-                h = self.x_dec(h)
-                h = h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
-                outs += [h]
+                x = F.elu(h_copy)
+                x = self.x_dec(x)
+                x = x.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
+                outs += [x]
 
                 current += 1
 
