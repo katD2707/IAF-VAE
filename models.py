@@ -108,7 +108,7 @@ class CVAE(nn.Module):
                 h, _, _ = sub_layer.down(h, mode='sample')
 
         h = F.elu(h)
-        h = self.last_conv(h)
+        h = self.x_dec(h)
 
         return h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
 
@@ -216,10 +216,9 @@ class IAFLayer(nn.Module):
         if downsample:
             self.deconv2d = nn.utils.weight_norm(nn.ConvTranspose2d(in_channels=self.h_size + self.z_size,
                                                                     out_channels=self.h_size,
-                                                                    kernel_size=3,
+                                                                    kernel_size=4,
                                                                     stride=2,
                                                                     padding=1,
-                                                                    output_padding=1,
                                                                     )
                                                  )
         else:

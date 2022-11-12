@@ -152,8 +152,8 @@ def train(params):
             "epoch": epoch,
         }
 
-        if (epoch + 1) % params.training.checkpoints_frequency == 0 or epoch == 0:
-            torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch+1}'))
+        if (epoch + 1) % params['training']['checkpoints_frequency'] == 0 or epoch == 0:
+            torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch+1}.pth'))
 
         current_test = sum(test_log['bpd']) / len(val_loader)
         if current_test < best_test:
