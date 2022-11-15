@@ -113,6 +113,7 @@ def train(params):
         print(f'===> Epoch: {epoch + 1} | Loss: {losses/len(losses):.2f} | '
               f'Bits/Dim: {avg_bpd/len(avg_bpd):.2f}')
 
+
         model.eval()
         losses = 0.
         avg_bpd = 0.
@@ -145,7 +146,8 @@ def train(params):
 
                 save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)), nrow=12)
                 save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
-                save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
+
+            save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
 
             print(f'===> Validation | Epoch: {epoch + 1} | Loss: {losses / len(losses):.2f} | '
                   f'Bits/Dim: {avg_bpd / len(avg_bpd):.2f}')
