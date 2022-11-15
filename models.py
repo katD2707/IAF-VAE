@@ -63,7 +63,6 @@ class CVAE(nn.Module):
                                         )
 
     def forward(self, inputs):
-        inputs = torch.tile(inputs, [self.k, 1, 1, 1])
         h = self.x_enc(inputs)
 
         # Bottom up
@@ -92,7 +91,7 @@ class CVAE(nn.Module):
         log_pxz = discretized_logistic(h, self.dec_log_stdv, sample=inputs)
         obj = (kl_obj - log_pxz).sum()
 
-        elbo = compute_lowerbound(log_pxz, kl, self.k).sum()
+        elbo = compute_lowerbound(log_pxz, kl, self.k)
 
         return h, obj, elbo
 
@@ -113,8 +112,6 @@ class CVAE(nn.Module):
         return h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
 
     def cond_sample(self, inputs):
-        # assumes input is \in [-0.5, 0.5]
-        inputs = torch.tile(inputs, [self.k, 1, 1, 1])
         h = self.x_enc(inputs)
 
         for layer in self.layers:
@@ -126,7 +123,7 @@ class CVAE(nn.Module):
                          self.image_size // 2 ** len(self.layers),
                          self.image_size // 2 ** len(self.layers),
                          )).to(self.device)
-        kl_cost, kl_obj = 0., 0.
+
         outs = []
 
         current = 0
@@ -182,14 +179,14 @@ class IAFLayer(nn.Module):
         self.activation = nn.ELU()
 
         if downsample:
-            down_stride = 2
+            down_stride, kernel_size = 2, 4
         else:
-            down_stride = 1
+            down_stride, kernel_size = 1, 3
 
         self.conv2d_up_1 = nn.utils.weight_norm(nn.Conv2d(in_channels,
                                                           out_channels=2 * self.z_size + 2 * self.h_size,
                                                           stride=down_stride,
-                                                          kernel_size=3,
+                                                          kernel_size=kernel_size,
                                                           padding=1,
                                                           )
                                                 )
@@ -261,17 +258,17 @@ class IAFLayer(nn.Module):
 
         if mode in ['init', 'sample']:
             z = prior
+            kl_cost = kl_obj = torch.zeros(data_size).to(inputs.device)
         else:
             z = posterior
 
-        if mode == 'sample':
-            kl_cost = kl_obj = torch.zeros(data_size).to(inputs.device)
-        else:
             log_qz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_posterior), 2)) + torch.pow(
                 z - mean_posterior, 2) / torch.pow(torch.exp(log_std_posterior), 2))  # posterior loss
 
             arw_mean, arw_log_std = self.multi_masked_conv2d(z, context)
+            arw_mean, arw_log_std = arw_mean * 0.1, arw_log_std * 0.1
             z = (z - arw_mean) / torch.exp(arw_log_std)
+
             log_qz += arw_log_std
             log_pz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_pz), 2)) +
                              torch.pow(z - mean_pz, 2) / torch.pow(torch.exp(log_std_pz), 2))
@@ -295,9 +292,8 @@ class IAFLayer(nn.Module):
             h = self.deconv2d(h)  #
         else:
             h = self.conv2d_down_2(h)
-        output = inputs + 0.1 * h
 
-        return output, kl_obj, kl_cost
+        return inputs + 0.1 * h, kl_obj, kl_cost
 
 
 class AutoregressiveMultiConv2d(nn.Module):

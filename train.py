@@ -83,7 +83,7 @@ def train(params):
     print('Start training...')
     for epoch in range(start_epoch, params['training']['n_epochs']):
         model.train()
-        losses = 0.
+        losses = []
         avg_bpd = 0.
         train_log = utils.reset_log()
 
@@ -92,22 +92,26 @@ def train(params):
             x, loss, elbo = model(inputs)
 
             loss = loss / x.shape[0]
-            losses += loss
-            bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.) * x.shape[0])
-            avg_bpd += bpd
+            losses.append(loss)
+            bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+            avg_bpd.append(bpd.mean())
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            train_log['bpd'] += [bpd]
-            train_log['elbo'] += [elbo]
+            train_log['bpd'] += [bpd.mean()]
+            train_log['elbo'] += [elbo.mean()]
 
             if batch_idx % 25 == 0:
                 print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
                       f'Bits/Dim: {bpd:.2f}')
 
-        print(f'===> Epoch: {epoch + 1} | Loss: {losses/len(train_loader):.2f} | '
-              f'Bits/Dim: {avg_bpd/len(train_loader):.2f}')
+        for key, value in train_log.items():
+            utils.print_and_log_scalar(writer, 'train/%s' % key, value, epoch)
+
+        print(f'===> Epoch: {epoch + 1} | Loss: {losses/len(losses):.2f} | '
+              f'Bits/Dim: {avg_bpd/len(avg_bpd):.2f}')
 
         model.eval()
         losses = 0.
@@ -120,9 +124,9 @@ def train(params):
                 x, loss, elbo = model(inputs)
 
                 loss = loss / x.shape[0]
-                losses += loss
-                bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.) * inputs.size(0))
-                avg_bpd += bpd
+                losses.append(loss)
+                bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+                avg_bpd.append(bpd)
 
                 train_log['bpd'] += [bpd]
                 train_log['elbo'] += [elbo]
@@ -143,16 +147,18 @@ def train(params):
                 save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
                 save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
 
-            print(f'===> Epoch: {epoch + 1} | Loss: {losses / len(train_loader):.2f} | '
-                  f'Bits/Dim: {avg_bpd / len(train_loader):.2f}')
+            print(f'===> Validation | Epoch: {epoch + 1} | Loss: {losses / len(losses):.2f} | '
+                  f'Bits/Dim: {avg_bpd / len(avg_bpd):.2f}')
 
-        # Save model checkpoint
-        state_dict = {
-            "model": model.state_dict(),
-            "epoch": epoch,
-        }
+            for key, value in test_log.items():
+                utils.print_and_log_scalar(writer, 'test/%s' % key, value, epoch)
 
         if (epoch + 1) % params['training']['checkpoints_frequency'] == 0 or epoch == 0:
+            # Save model checkpoint and epoch
+            state_dict = {
+                "model": model.state_dict(),
+                "epoch": epoch,
+            }
             torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch+1}.pth'))
 
         current_test = sum(test_log['bpd']) / len(val_loader)
@@ -179,5 +185,4 @@ if __name__ == "__main__":
     with open(args.config_path, "r") as params:
         args = yaml.load(params, Loader=yaml.FullLoader)
 
-    print(args)
     train(args)
