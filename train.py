@@ -9,6 +9,7 @@ import os
 from tensorboardX import SummaryWriter
 from torchvision.utils import save_image
 
+
 def train(params):
     # Set random seed for reproducibility
     utils.set_seed(params['generic']['seed'])
@@ -84,7 +85,7 @@ def train(params):
     for epoch in range(start_epoch, params['training']['n_epochs']):
         model.train()
         losses = []
-        avg_bpd = 0.
+        avg_bpd = []
         train_log = utils.reset_log()
 
         for batch_idx, (inputs, _) in enumerate(train_loader):
@@ -105,18 +106,17 @@ def train(params):
 
             if batch_idx % 25 == 0:
                 print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
-                      f'Bits/Dim: {bpd:.2f}')
+                      f'Bits/Dim: {bpd.mean():.2f}')
 
         for key, value in train_log.items():
             utils.print_and_log_scalar(writer, 'train/%s' % key, value, epoch)
 
-        print(f'===> Epoch: {epoch + 1} | Loss: {losses/len(losses):.2f} | '
-              f'Bits/Dim: {avg_bpd/len(avg_bpd):.2f}')
-
+        print(f'===> Epoch: {epoch + 1} | Loss: {losses / len(losses):.2f} | '
+              f'Bits/Dim: {avg_bpd / len(avg_bpd):.2f}')
 
         model.eval()
-        losses = 0.
-        avg_bpd = 0.
+        losses = []
+        avg_bpd = []
         test_log = utils.reset_log()
 
         with torch.no_grad():
@@ -127,10 +127,10 @@ def train(params):
                 loss = loss / x.shape[0]
                 losses.append(loss)
                 bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
-                avg_bpd.append(bpd)
+                avg_bpd.append(bpd.mean())
 
-                train_log['bpd'] += [bpd]
-                train_log['elbo'] += [elbo]
+                train_log['bpd'] += [bpd.mean()]
+                train_log['elbo'] += [elbo.mean()]
 
                 all_samples = model.cond_sample(inputs)
                 # save reconstructions
@@ -144,10 +144,12 @@ def train(params):
                 all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
                 all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-                save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)), nrow=12)
+                save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
+                           nrow=12)
                 save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
 
-            save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)), nrow=8)
+            save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
+                       nrow=8)
 
             print(f'===> Validation | Epoch: {epoch + 1} | Loss: {losses / len(losses):.2f} | '
                   f'Bits/Dim: {avg_bpd / len(avg_bpd):.2f}')
@@ -161,7 +163,7 @@ def train(params):
                 "model": model.state_dict(),
                 "epoch": epoch,
             }
-            torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch+1}.pth'))
+            torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch + 1}.pth'))
 
         current_test = sum(test_log['bpd']) / len(val_loader)
         if current_test < best_test:
