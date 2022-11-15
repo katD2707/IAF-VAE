@@ -111,8 +111,8 @@ def train(params):
         for key, value in train_log.items():
             utils.print_and_log_scalar(writer, 'train/%s' % key, value, epoch)
 
-        print(f'===> Epoch: {epoch + 1} | Loss: {losses / len(losses):.2f} | '
-              f'Bits/Dim: {avg_bpd / len(avg_bpd):.2f}')
+        print(f'===> Epoch: {epoch + 1} | Loss: {sum(losses) / len(losses):.2f} | '
+              f'Bits/Dim: {sum(avg_bpd) / len(avg_bpd):.2f}')
 
         model.eval()
         losses = []
@@ -129,8 +129,8 @@ def train(params):
                 bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
                 avg_bpd.append(bpd.mean())
 
-                train_log['bpd'] += [bpd.mean()]
-                train_log['elbo'] += [elbo.mean()]
+                test_log['bpd'] += [bpd.mean()]
+                test_log['elbo'] += [elbo.mean()]
 
                 all_samples = model.cond_sample(inputs)
                 # save reconstructions
@@ -151,8 +151,8 @@ def train(params):
             save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
                        nrow=8)
 
-            print(f'===> Validation | Epoch: {epoch + 1} | Loss: {losses / len(losses):.2f} | '
-                  f'Bits/Dim: {avg_bpd / len(avg_bpd):.2f}')
+            print(f'===> Validation | Epoch: {epoch + 1} | Loss: {sum(losses) / len(losses):.2f} | '
+                  f'Bits/Dim: {sum(avg_bpd) / len(avg_bpd):.2f}')
 
             for key, value in test_log.items():
                 utils.print_and_log_scalar(writer, 'test/%s' % key, value, epoch)
