@@ -11,14 +11,13 @@ model:
   k: 1
   kl_min: 0.25
   num_hidden_layers: 2
-  num_blocks: 2
+  num_blocks: 4
 
 training:
   optimizer:
     learning_rate: 0.001
   current_checkpoint:
-  checkpoints_frequency: 20 # epochs
-  batch_size: 8
+  checkpoints_frequency: 10 # epochs
   n_epochs: 1000
 
 save_model:
