@@ -75,9 +75,9 @@ def train(params):
     best_test = float('inf')
 
     start_epoch = 0
-    if params['training']['current_checkpoint'] is not None:
-        if os.path.exists(params['training']['current_checkpoint']) is True:
-            checkpoint = torch.load(params['training']['current_checkpoint'])
+    if params.current_checkpoint is not None:
+        if os.path.exists(params.current_checkpoint) is True:
+            checkpoint = torch.load(params.current_checkpoint)
             model.load_state_dict(checkpoint['model'])
             start_epoch = checkpoint['epoch']
     model.to(device)
@@ -183,9 +183,12 @@ if __name__ == "__main__":
         required=True,
         type=str,
     )
-    # parser.add_argument(
-    #     "save"
-    # )
+    parser.add_argument(
+        "-ckpt",
+        "--current_checkpoint",
+        default=None,
+        type=str,
+    )
     args = parser.parse_args()
     with open(args.config_path, "r") as params:
         args = yaml.load(params, Loader=yaml.FullLoader)
