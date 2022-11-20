@@ -10,6 +10,7 @@ class CVAE(nn.Module):
     def __init__(self,
                  in_channels,
                  hidden_size,
+                 out_channels,
                  z_size,
                  k,
                  kl_min,
@@ -56,7 +57,7 @@ class CVAE(nn.Module):
 
         # Decoder output
         self.x_dec = nn.ConvTranspose2d(in_channels=self.h_size,
-                                        out_channels=3,
+                                        out_channels=in_channels,
                                         kernel_size=4,
                                         stride=2,
                                         padding=1,

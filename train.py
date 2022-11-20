@@ -76,9 +76,10 @@ def train(params):
 
     start_epoch = 0
     if params['training']['current_checkpoint'] is not None:
-        checkpoint = torch.load(params['training']['current_checkpoint'])
-        model.load_state_dict(checkpoint['model'])
-        start_epoch = checkpoint['epoch']
+        if os.path.exists(params['training']['current_checkpoint']) is True:
+            checkpoint = torch.load(params['training']['current_checkpoint'])
+            model.load_state_dict(checkpoint['model'])
+            start_epoch = checkpoint['epoch']
     model.to(device)
 
     print('Start training...')
