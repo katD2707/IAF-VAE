@@ -55,7 +55,7 @@ def train(params):
                         )
 
     # Optimizer
-    optimizer = optim.Adamax(model.parameters(), lr=params.optimizerlearning_rate)
+    optimizer = optim.Adamax(model.parameters(), lr=params.learning_rate)
 
     # spawn writer
     model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.num_blocks,
@@ -158,7 +158,7 @@ def train(params):
             for key, value in test_log.items():
                 utils.print_and_log_scalar(writer, 'test/%s' % key, value, epoch)
 
-        if (epoch + 1) % params.checkpoints_frequency == 0 or epoch == 0:
+        if (epoch + 1) % params.checkpoint_frequency == 0 or epoch == 0:
             # Save model checkpoint and epoch
             state_dict = {
                 "model": model.state_dict(),

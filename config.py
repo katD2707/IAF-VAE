@@ -47,7 +47,6 @@ def parse_args():
     parser.add_argument('--checkpoint_path', default="./", type=str)
     parser.add_argument('--validate', action='store_true')
     parser.add_argument('--validate_every', default=4, type=int)
-    parser.add_argument('--batch_size', default=8, type=int)
     parser.add_argument('--seed', default=0, type=int)
 
     args = parser.parse_args()
