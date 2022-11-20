@@ -10,7 +10,6 @@ class CVAE(nn.Module):
     def __init__(self,
                  in_channels,
                  hidden_size,
-                 out_channels,
                  z_size,
                  k,
                  kl_min,
