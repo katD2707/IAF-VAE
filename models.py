@@ -27,7 +27,7 @@ class CVAE(nn.Module):
         self.device = device
 
         self.register_parameter('dec_log_stdv', torch.nn.Parameter(torch.Tensor([0.])))
-
+        self.register_parameter('h', torch.nn.Parameter(torch.zeros(self.h_size)))
         # Encoder input     # (B, hidden_size, 16, 16)
         self.x_enc = nn.Conv2d(in_channels,
                                self.h_size,
@@ -63,18 +63,17 @@ class CVAE(nn.Module):
                                         )
 
     def forward(self, inputs):
-        h = self.x_enc(inputs)
+        x = self.x_enc(inputs)
 
         # Bottom up
         for layer in self.layers:
             for sub_layer in layer:
-                h = sub_layer.up(h)
+                x = sub_layer.up(x)
 
-        h = torch.zeros((inputs.shape[0],
-                         self.h_size,
-                         self.image_size // 2 ** len(self.layers),
-                         self.image_size // 2 ** len(self.layers)
-                         )).to(inputs.device)
+        h = self.h.view(1, -1, 1, 1)
+        h = h.expand_as(x)
+        self.hidden_shape = x[0].size()
+
         kl = kl_obj = 0.
 
         # Top down
@@ -96,11 +95,8 @@ class CVAE(nn.Module):
         return h, obj, elbo
 
     def sample(self, n_samples=64):
-        h = torch.zeros((n_samples * self.k,
-                         self.h_size,
-                         self.image_size // 2 ** len(self.layers),
-                         self.image_size // 2 ** len(self.layers),
-                         )).to(self.device)
+        h = self.h.view(1, -1, 1, 1)
+        h = h.expand((n_samples, *self.hidden_shape))
 
         for layer in reversed(self.layers):
             for sub_layer in reversed(layer):
@@ -112,17 +108,15 @@ class CVAE(nn.Module):
         return h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
 
     def cond_sample(self, inputs):
-        h = self.x_enc(inputs)
+        x = self.x_enc(inputs)
 
         for layer in self.layers:
             for sub_layer in layer:
-                h = sub_layer.up(h)
+                x = sub_layer.up(x)
 
-        h = torch.zeros((inputs.size(0),
-                         self.h_size,
-                         self.image_size // 2 ** len(self.layers),
-                         self.image_size // 2 ** len(self.layers),
-                         )).to(self.device)
+        h = self.h.view(1, -1, 1, 1)
+        h = h.expand_as(x)
+        self.hidden_shape = x[0].size()
 
         outs = []
 
@@ -239,7 +233,6 @@ class IAFLayer(nn.Module):
         return inputs + 0.1 * h
 
     def down(self, inputs, mode='train'):
-        data_size = inputs.shape[0] * self.k
         x = self.activation(inputs)
         x = self.conv2d_down_1(x)
         mean_pz, log_std_pz, mean_rz, log_std_rz, down_context, h_det = torch.tensor_split(x, (self.z_size,
@@ -248,8 +241,8 @@ class IAFLayer(nn.Module):
                                                                                                4 * self.z_size,
                                                                                                4 * self.z_size + self.h_size),
                                                                                            dim=1)
-        eps_prior = torch.randn(data_size, self.z_size, mean_pz.shape[-2], mean_pz.shape[-1]).to(inputs.device)
-        eps_posterior = torch.randn(data_size, self.z_size, mean_rz.shape[-2], mean_rz.shape[-1]).to(inputs.device)
+        eps_prior = torch.randn(inputs.shape[0], self.z_size, mean_pz.shape[-2], mean_pz.shape[-1]).to(inputs.device)
+        eps_posterior = torch.randn(inputs.shape[0], self.z_size, mean_rz.shape[-2], mean_rz.shape[-1]).to(inputs.device)
         prior = mean_pz + eps_prior * torch.exp(log_std_pz)
         mean_posterior = mean_rz + self.mean_qz
         log_std_posterior = self.log_std_qz + log_std_rz
@@ -258,7 +251,7 @@ class IAFLayer(nn.Module):
 
         if mode in ['init', 'sample']:
             z = prior
-            kl_cost = kl_obj = torch.zeros(data_size).to(inputs.device)
+            kl_cost = kl_obj = torch.zeros(inputs.shape[0]).to(inputs.device)
         else:
             z = posterior
 
@@ -279,7 +272,7 @@ class IAFLayer(nn.Module):
                 kl_obj = kl_cost.sum(dim=(2, 3)).mean(0, keepdim=True)
                 kl_obj = kl_obj.clamp(min=self.kl_min)
                 kl_obj = kl_obj.sum()
-                kl_obj = torch.tile(kl_obj, [data_size])
+                kl_obj = torch.tile(kl_obj, [inputs.shape[0]])
             else:
                 kl_obj = kl_cost.sum(dim=(1, 2, 3))
 
@@ -348,7 +341,6 @@ class MaskedConv2d(nn.Conv2d):
         super(MaskedConv2d, self).__init__(*args, **kwargs)
         mask = get_conv_ar_mask(self.kernel_size[0], self.kernel_size[0], self.in_channels, self.out_channels,
                                 zerodiagonal=diag_mask)
-        mask = mask.reshape(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[0])
         self.register_buffer('mask', mask)
         self.elu = nn.ELU()
 
