@@ -8,18 +8,18 @@ import numpy as np
 import os
 from tensorboardX import SummaryWriter
 from torchvision.utils import save_image
-
+import config
 
 def train(params):
     # Set random seed for reproducibility
-    utils.set_seed(params['generic']['seed'])
+    utils.set_seed(params.seed)
 
     # Get GPU if present
     device = utils.get_device()
 
     # Set number of threads
-    if params['generic']['workers'] > 0:
-        torch.set_num_threads(params['generic']['workers'])
+    if params.num_workers > 0:
+        torch.set_num_threads(params.num_workers)
 
     # Get transform
     transform = transforms.Compose([
@@ -30,39 +30,39 @@ def train(params):
     # Get data
     dataset = datasets.Cifar10(train=True,
                                val=True,
-                               root=params['dataset']['data_path'],
+                               root=params.data_path,
                                transform_train=transform,
                                transform_val=transform,
                                download=True,
                                )
     # Get data loader
-    train_loader, val_loader = dataset.get_dataloader(params['dataset']['batch_size'],
-                                                      num_workers=params['dataset']['num_workers'],
+    train_loader, val_loader = dataset.get_dataloader(params.batch_size,
+                                                      num_workers=params.num_workers,
                                                       pin_memory=True,
                                                       )
 
     # Get model
-    model = models.CVAE(in_channels=params['model']['in_channels'],
-                        hidden_size=params['model']['hidden_size'],
-                        z_size=params['model']['z_size'],
-                        batch_size=params['dataset']['batch_size'],
-                        k=params['model']['k'],
-                        kl_min=params['model']['kl_min'],
-                        num_hidden_layers=params['model']['num_hidden_layers'],
-                        num_blocks=params['model']['num_blocks'],
-                        image_size=params['dataset']['image_size'],
+    model = models.CVAE(in_channels=params.in_channels,
+                        hidden_size=params.hidden_size,
+                        z_size=params.z_size,
+                        batch_size=params.batch_size,
+                        k=params.k,
+                        kl_min=params.kl_min,
+                        num_hidden_layers=params.num_hidden_layers,
+                        num_blocks=params.num_blocks,
+                        image_size=params.image_size,
                         device=device,
                         )
 
     # Optimizer
-    optimizer = optim.Adamax(model.parameters(), lr=params['training']['optimizer']['learning_rate'])
+    optimizer = optim.Adamax(model.parameters(), lr=params.optimizerlearning_rate)
 
     # spawn writer
-    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params['model']['num_blocks'],
-                                                     params['model']['num_hidden_layers'], params['model']['z_size'],
-                                                     params['model']['hidden_size'],
-                                                     params['dataset']['batch_size'],
-                                                     params['training']['optimizer']['learning_rate'])
+    model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.num_blocks,
+                                                     params.num_hidden_layers, params.z_size,
+                                                     params.hidden_size,
+                                                     params.batch_size,
+                                                     params.learning_rate)
 
     log_dir = os.path.join('runs', model_name)
     sample_dir = os.path.join(log_dir, 'samples')
@@ -82,8 +82,8 @@ def train(params):
             start_epoch = checkpoint['epoch']
     model.to(device)
 
-    print('Start training...')
-    for epoch in range(start_epoch, params['training']['n_epochs']):
+    print('Start ....')
+    for epoch in range(start_epoch, params.n_epochs):
         model.train()
         losses = []
         avg_bpd = []
@@ -95,7 +95,7 @@ def train(params):
 
             loss = loss / x.shape[0]
             losses.append(loss)
-            bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+            bpd = elbo / (params.image_size ** 2 * params.in_channels * np.log(2.))
             avg_bpd.append(bpd.mean())
 
             optimizer.zero_grad()
@@ -127,7 +127,7 @@ def train(params):
 
                 loss = loss / x.shape[0]
                 losses.append(loss)
-                bpd = elbo / (params['dataset']['image_size'] ** 2 * params['model']['in_channels'] * np.log(2.))
+                bpd = elbo / (params.image_size ** 2 * params.in_channels * np.log(2.))
                 avg_bpd.append(bpd.mean())
 
                 test_log['bpd'] += [bpd.mean()]
@@ -158,7 +158,7 @@ def train(params):
             for key, value in test_log.items():
                 utils.print_and_log_scalar(writer, 'test/%s' % key, value, epoch)
 
-        if (epoch + 1) % params['training']['checkpoints_frequency'] == 0 or epoch == 0:
+        if (epoch + 1) % params.checkpoints_frequency == 0 or epoch == 0:
             # Save model checkpoint and epoch
             state_dict = {
                 "model": model.state_dict(),
@@ -174,23 +174,6 @@ def train(params):
 
 
 if __name__ == "__main__":
-    # Parse parameters
-    parser = ArgumentParser(description="train ResnetVAE model")
-    parser.add_argument(
-        "-p",
-        "--config_path",
-        help="path to the config file",
-        required=True,
-        type=str,
-    )
-    parser.add_argument(
-        "-ckpt",
-        "--current_checkpoint",
-        default=None,
-        type=str,
-    )
-    args = parser.parse_args()
-    with open(args.config_path, "r") as params:
-        args = yaml.load(params, Loader=yaml.FullLoader)
+    args = config.parse_args()
 
     train(args)
