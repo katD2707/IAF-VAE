@@ -75,11 +75,11 @@ def train(params):
     best_test = float('inf')
 
     start_epoch = 0
-    if params.current_checkpoint is not None:
+    if params.current_checkpoint is not "None":
         if os.path.exists(params.current_checkpoint) is True:
             checkpoint = torch.load(params.current_checkpoint)
             model.load_state_dict(checkpoint['model'])
-            start_epoch = checkpoint['epoch']
+            start_epoch = checkpoint['epoch'] + 1
     model.to(device)
 
     print('Start ....')

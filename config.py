@@ -15,26 +15,11 @@ def parse_args():
         default="None",
         type=str,
     )
-    parser.add_argument('--num_workers',
-                        default=2,
-                        type=int,
-                        )
-    parser.add_argument('--data_path',
-                        default='./data',
-                        type=str,
-                        )
-    parser.add_argument('--batch_size',
-                        default=64,
-                        type=int,
-                        )
-    parser.add_argument('--image_size',
-                        default=32,
-                        type=int,
-                        )
-    parser.add_argument('--in_channels',
-                        default=3,
-                        type=int,
-                        )
+    parser.add_argument('--num_workers', default=2, type=int)
+    parser.add_argument('--data_path', default='./data', type=str)
+    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--image_size', default=32, type=int)
+    parser.add_argument('--in_channels', default=3, type=int)
     parser.add_argument('--hidden_size', default=160, type=int)
     parser.add_argument('--z_size', default=32, type=int)
     parser.add_argument('--k', default=1, type=int)
