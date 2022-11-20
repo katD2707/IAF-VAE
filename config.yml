@@ -16,7 +16,7 @@ model:
 training:
   optimizer:
     learning_rate: 0.001
-  current_checkpoint: "./runs/"
+
   checkpoints_frequency: 10 # epochs
   n_epochs: 1000
 
