@@ -133,24 +133,25 @@ def train(params):
                 test_log['bpd'] += [bpd.mean()]
                 test_log['elbo'] += [elbo.mean()]
 
-                all_samples = model.cond_sample(inputs)
-                # save reconstructions
-                out = torch.stack((x, inputs))  # 2, bs, 3, 32, 32
-                out = out.transpose(1, 0).contiguous()  # bs, 2, 3, 32, 32
-                out = out.view(-1, x.size(-3), x.size(-2), x.size(-1))
+                if batch_idx == len(val_loader) - 1:
+                    all_samples = model.cond_sample(inputs)
+                    # save reconstructions
+                    out = torch.stack((x, inputs))  # 2, bs, 3, 32, 32
+                    out = out.transpose(1, 0).contiguous()  # bs, 2, 3, 32, 32
+                    out = out.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-                all_samples += [x]
-                all_samples = torch.stack(all_samples)  # L, bs, 3, 32, 32
-                all_samples = all_samples.transpose(1, 0)
-                all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
-                all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
+                    all_samples += [x]
+                    all_samples = torch.stack(all_samples)  # L, bs, 3, 32, 32
+                    all_samples = all_samples.transpose(1, 0)
+                    all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
+                    all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-                save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
-                           nrow=12)
-                save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
+                    save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
+                               nrow=12)
+                    save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
 
-            save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
-                       nrow=8)
+                    save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
+                               nrow=8)
 
             print(f'===> Validation | Epoch: {epoch + 1} | Loss: {sum(losses) / len(losses):.2f} | '
                   f'Bits/Dim: {sum(avg_bpd) / len(avg_bpd):.2f}')

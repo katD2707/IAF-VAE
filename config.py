@@ -3,13 +3,6 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description="train ResnetVAE model")
     parser.add_argument(
-        "-p",
-        "--config_path",
-        help="path to the config file",
-        required=True,
-        type=str,
-    )
-    parser.add_argument(
         "-ckpt",
         "--current_checkpoint",
         default="None",
