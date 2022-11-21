@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from masks import get_conv_ar_mask
 from utils import *
-from torchsummary import summary
+import torch.distributions as D
 
 
 class CVAE(nn.Module):
@@ -241,30 +241,24 @@ class IAFLayer(nn.Module):
                                                                                                4 * self.z_size,
                                                                                                4 * self.z_size + self.h_size),
                                                                                            dim=1)
-        eps_prior = torch.randn(inputs.shape[0], self.z_size, mean_pz.shape[-2], mean_pz.shape[-1]).to(inputs.device)
-        eps_posterior = torch.randn(inputs.shape[0], self.z_size, mean_rz.shape[-2], mean_rz.shape[-1]).to(inputs.device)
-        prior = mean_pz + eps_prior * torch.exp(log_std_pz)
-        mean_posterior = mean_rz + self.mean_qz
-        log_std_posterior = self.log_std_qz + log_std_rz
-        posterior = mean_posterior + eps_posterior * torch.exp(log_std_posterior)
-        context = down_context + self.up_context
+        prior = D.Normal(mean_pz, torch.exp(2 * log_std_pz))
 
         if mode in ['init', 'sample']:
-            z = prior
+            z = prior.rsample()
             kl_cost = kl_obj = torch.zeros(inputs.shape[0]).to(inputs.device)
         else:
-            z = posterior
+            posterior = D.Normal(mean_rz + self.mean_qz, torch.exp(self.log_std_qz + log_std_rz))
+            z = posterior.rsample()
+            log_qz = posterior.log_prob(z)  # posterior loss
 
-            log_qz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_posterior), 2)) + torch.pow(
-                z - mean_posterior, 2) / torch.pow(torch.exp(log_std_posterior), 2))  # posterior loss
+            context = down_context + self.up_context
 
             arw_mean, arw_log_std = self.multi_masked_conv2d(z, context)
             arw_mean, arw_log_std = arw_mean * 0.1, arw_log_std * 0.1
             z = (z - arw_mean) / torch.exp(arw_log_std)
 
             log_qz += arw_log_std
-            log_pz = -0.5 * (torch.log(2 * np.pi * torch.pow(torch.exp(log_std_pz), 2)) +
-                             torch.pow(z - mean_pz, 2) / torch.pow(torch.exp(log_std_pz), 2))
+            log_pz = prior.log_prob(z)
 
             kl_cost = log_qz - log_pz
 
@@ -326,10 +320,7 @@ class AutoregressiveMultiConv2d(nn.Module):
     def forward(self, inputs, context):
         for layer in self.MaskedLayers:
             inputs, context = layer(inputs, context)
-        mean, _ = self.MaskedConv2dMean(inputs)
-        std, _ = self.MaskedConv2dStd(inputs)
-
-        return mean, std
+        return self.MaskedConv2dMean(inputs), self.MaskedConv2dStd(inputs)
 
 
 class MaskedConv2d(nn.Conv2d):
@@ -346,8 +337,9 @@ class MaskedConv2d(nn.Conv2d):
 
     def forward(self, inputs, context=None):
         inputs = self._conv_forward(inputs, self.mask * self.weight, self.bias)
-        if context is not None:
-            inputs += context
+        if context is None:
+            return self.elu(inputs)
+        inputs += context
         return self.elu(inputs), context
 
 # model = CVAE(
