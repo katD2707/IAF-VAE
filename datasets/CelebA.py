@@ -10,6 +10,7 @@ from datasets.BaseDataset import VisionDataset
 
 CSV = namedtuple("CSV", ["header", "index", "data"])
 
+import glob
 
 class CelebA(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
@@ -39,7 +40,7 @@ class CelebA(VisionDataset):
             downloaded again.
     """
 
-    base_folder = ""
+    base_folder = "img_align_celeba"
     # There currently does not appear to be a easy way to extract 7z in python (without introducing additional
     # dependencies). The "in-the-wild" (not aligned+cropped) images are only in 7z, so they are not available
     # right now.
@@ -112,7 +113,7 @@ class CelebA(VisionDataset):
         filename: str,
         header: Optional[int] = None,
     ) -> CSV:
-        with open(os.path.join(self.root, self.base_folder, filename)) as csv_file:
+        with open(os.path.join(self.root, filename)) as csv_file:
             data = list(csv.reader(csv_file, delimiter=" ", skipinitialspace=True))
 
         if header is not None:
@@ -137,7 +138,7 @@ class CelebA(VisionDataset):
         #         return False
 
         # Should check a hash of the images
-        return os.path.isdir(os.path.join(self.root, self.base_folder, "img_align_celeba"))
+        return os.path.isdir(os.path.join(self.root, "img_align_celeba"))
 
     def download(self) -> None:
         if self._check_integrity():
@@ -147,7 +148,7 @@ class CelebA(VisionDataset):
         for (file_id, md5, filename) in self.file_list:
             download_file_from_google_drive(file_id, os.path.join(self.root, self.base_folder), filename, md5)
 
-        extract_archive(os.path.join(self.root, self.base_folder, "img_align_celeba.zip"))
+        extract_archive(os.path.join(self.root, "img_align_celeba.zip"))
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         X = PIL.Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))
