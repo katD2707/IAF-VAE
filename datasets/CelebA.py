@@ -88,7 +88,6 @@ class CelebA(VisionDataset):
         }
         split_ = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
         splits = self._load_csv("list_eval_partition.csv")
-        identity = self._load_csv("identity_CelebA.csv")
         bbox = self._load_csv("list_bbox_celeba.csv", header=1)
         landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=1)
         attr = self._load_csv("list_attr_celeba.csv", header=1)
@@ -99,7 +98,7 @@ class CelebA(VisionDataset):
             self.filename = splits.index
         else:
             self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
-        self.identity = identity.data[mask]
+
         self.bbox = bbox.data[mask]
         self.landmarks_align = landmarks_align.data[mask]
         self.attr = attr.data[mask]
@@ -156,8 +155,6 @@ class CelebA(VisionDataset):
         for t in self.target_type:
             if t == "attr":
                 target.append(self.attr[index, :])
-            elif t == "identity":
-                target.append(self.identity[index, 0])
             elif t == "bbox":
                 target.append(self.bbox[index, :])
             elif t == "landmarks":
