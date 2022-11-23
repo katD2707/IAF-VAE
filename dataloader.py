@@ -1,5 +1,4 @@
 import torch.utils.data
-from torch.utils.data import Dataset
 import torchvision.datasets as datasets
 
 
@@ -148,3 +147,5 @@ class CelebA:
             return train_loader, test_loader
 
         return train_loader
+
+
