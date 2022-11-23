@@ -10,6 +10,7 @@ from datasets.BaseDataset import VisionDataset
 
 CSV = namedtuple("CSV", ["header", "index", "data"])
 
+
 class CelebA(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
 
@@ -87,10 +88,10 @@ class CelebA(VisionDataset):
             "all": None,
         }
         split_ = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
-        splits = self._load_csv("list_eval_partition.csv")
-        bbox = self._load_csv("list_bbox_celeba.csv")
-        landmarks_align = self._load_csv("list_landmarks_align_celeba.csv")
-        attr = self._load_csv("list_attr_celeba.csv")
+        splits = self._load_csv("list_eval_partition.csv", header=1)
+        bbox = self._load_csv("list_bbox_celeba.csv", header=1)
+        landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=1)
+        attr = self._load_csv("list_attr_celeba.csv", header=1)
 
         mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
 
