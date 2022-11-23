@@ -93,7 +93,10 @@ class CelebA(VisionDataset):
         bbox = self._load_csv("list_bbox_celeba.csv", header=0)
         landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=0)
         attr = self._load_csv("list_attr_celeba.csv", header=0)
-
+        print(bbox.__sizeof__())
+        print(attr.__sizeof__())
+        print(landmarks_align.__sizeof__())
+        print(splits.__sizeof__())
         mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
 
         if mask == slice(None):  # if split == "all"
