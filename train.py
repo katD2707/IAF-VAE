@@ -1,9 +1,7 @@
 import torch
 import torch.optim as optim
-from argparse import ArgumentParser
-import yaml
 from torchvision import transforms
-import utils, datasets, models
+import utils, dataloader, models
 import numpy as np
 import os
 from tensorboardX import SummaryWriter
@@ -32,7 +30,7 @@ def train(params):
     ])
 
     # Get data
-    dataset = datasets.CelebA(root=params.data_path,
+    dataset = dataloader.CelebA(root=params.data_path,
                               split_train="train",
                               split_val="valid",
                               transform_train=transform,
