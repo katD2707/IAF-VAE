@@ -88,10 +88,10 @@ class CelebA(VisionDataset):
             "all": None,
         }
         split_ = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
-        splits = self._load_csv("list_eval_partition.csv", header=1)
-        bbox = self._load_csv("list_bbox_celeba.csv", header=1)
-        landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=1)
-        attr = self._load_csv("list_attr_celeba.csv", header=1)
+        splits = self._load_csv("list_eval_partition.csv", header=0)
+        bbox = self._load_csv("list_bbox_celeba.csv", header=0)
+        landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=0)
+        attr = self._load_csv("list_attr_celeba.csv", header=0)
 
         mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
 
@@ -117,7 +117,7 @@ class CelebA(VisionDataset):
 
         if header is not None:
             headers = data[header]
-            data = data[header + 1 :]
+            data = data[header + 1:]
         else:
             headers = []
 
