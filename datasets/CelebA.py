@@ -128,13 +128,13 @@ class CelebA(VisionDataset):
         return CSV(headers, indices, torch.tensor(data_int))
 
     def _check_integrity(self) -> bool:
-        for (_, md5, filename) in self.file_list:
-            fpath = os.path.join(self.root, self.base_folder, filename)
-            _, ext = os.path.splitext(filename)
-            # Allow original archive to be deleted (zip and 7z)
-            # Only need the extracted images
-            if ext not in [".zip", ".7z"] and not check_integrity(fpath, md5):
-                return False
+        # for (_, md5, filename) in self.file_list:
+        #     fpath = os.path.join(self.root, self.base_folder, filename)
+        #     _, ext = os.path.splitext(filename)
+        #     # Allow original archive to be deleted (zip and 7z)
+        #     # Only need the extracted images
+        #     if ext not in [".zip", ".7z"] and not check_integrity(fpath, md5):
+        #         return False
 
         # Should check a hash of the images
         return os.path.isdir(os.path.join(self.root, self.base_folder, "img_align_celeba"))
