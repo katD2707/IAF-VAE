@@ -31,12 +31,12 @@ def train(params):
 
     # Get data
     dataset = dataloader.CelebA(root=params.data_path,
-                              split_train="train",
-                              split_val="valid",
-                              transform_train=transform,
-                              transform_val=transform,
-                              download=True,
-                              )
+                                split_train="train",
+                                split_val="valid",
+                                transform_train=transform,
+                                transform_val=transform,
+                                download=False,
+                                )
     # Get data loader
     train_loader, val_loader = dataset.get_dataloader(params.batch_size,
                                                       num_workers=params.num_workers,
@@ -154,11 +154,14 @@ def train(params):
                     all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
                     all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-                    save_image(utils.scale_inv_celeba(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
+                    save_image(utils.scale_inv_celeba(all_samples),
+                               os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
                                nrow=12)
-                    save_image(utils.scale_inv_celeba(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
+                    save_image(utils.scale_inv_celeba(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)),
+                               nrow=12)
 
-                    save_image(utils.scale_inv_celeba(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
+                    save_image(utils.scale_inv_celeba(model.sample(64)),
+                               os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
                                nrow=8)
 
             print(f'===> Validation | Epoch: {epoch + 1} | Loss: {sum(losses) / len(losses):.2f} | '
