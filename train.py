@@ -34,7 +34,7 @@ def train(params):
     # Get data
     dataset = datasets.CelebA(root=params.data_path,
                               split_train="train",
-                              split_val="val",
+                              split_val="valid",
                               transform_train=transform,
                               transform_val=transform,
                               download=True,
