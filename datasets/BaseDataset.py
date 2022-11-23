@@ -1,6 +1,5 @@
 import os
 from typing import Any, Callable, List, Optional, Tuple
-from torch._C import _log_api_usage_once
 from torch.utils.data import Dataset
 import torch
 
@@ -33,7 +32,6 @@ class VisionDataset(Dataset):
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
     ) -> None:
-        _log_api_usage_once(self)
         if isinstance(root, torch._six.string_classes):
             root = os.path.expanduser(root)
         self.root = root
