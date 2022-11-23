@@ -99,3 +99,52 @@ class Mnist:
             return train_loader, test_loader
 
         return train_loader
+
+
+class CelebA:
+    def __init__(self,
+                 split_train,
+                 split_val,
+                 transform_train=None,
+                 transform_val=None,
+                 root='./data',
+                 download=True,
+                 ):
+        self.trainset = datasets.CelebA(root=root,
+                                        split=split_train,
+                                        download=download,
+                                        transform=transform_train,
+                                        )
+        if split_train is not "all":
+            self.testset = datasets.CelebA(root=root,
+                                           split=split_val,
+                                           download=download,
+                                           transform=transform_val,
+                                           )
+        self.val = True if split_val is not None else False
+
+    def get_dataloader(self,
+                       batch_size,
+                       shuffle=True,
+                       drop_last=True,
+                       num_workers=2,
+                       pin_memory=True,
+                       ):
+        train_loader = torch.utils.data.DataLoader(self.trainset,
+                                                   batch_size=batch_size,
+                                                   shuffle=shuffle,
+                                                   num_workers=num_workers,
+                                                   drop_last=drop_last,
+                                                   pin_memory=pin_memory,
+                                                   )
+        if self.val:
+            test_loader = torch.utils.data.DataLoader(self.testset,
+                                                      batch_size=batch_size,
+                                                      shuffle=shuffle,
+                                                      num_workers=num_workers,
+                                                      drop_last=drop_last,
+                                                      pin_memory=pin_memory,
+                                                      )
+            return train_loader, test_loader
+
+        return train_loader

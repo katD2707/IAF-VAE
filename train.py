@@ -9,6 +9,8 @@ import os
 from tensorboardX import SummaryWriter
 from torchvision.utils import save_image
 import config
+from tqdm import tqdm
+
 
 def train(params):
     # Set random seed for reproducibility
@@ -23,18 +25,20 @@ def train(params):
 
     # Get transform
     transform = transforms.Compose([
+        transforms.Resize(args.image_size),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        lambda x: x - 0.5,
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
 
     # Get data
-    dataset = datasets.Cifar10(train=True,
-                               val=True,
-                               root=params.data_path,
-                               transform_train=transform,
-                               transform_val=transform,
-                               download=True,
-                               )
+    dataset = datasets.CelebA(root=params.data_path,
+                              split_train="train",
+                              split_val="val",
+                              transform_train=transform,
+                              transform_val=transform,
+                              download=True,
+                              )
     # Get data loader
     train_loader, val_loader = dataset.get_dataloader(params.batch_size,
                                                       num_workers=params.num_workers,
@@ -56,6 +60,7 @@ def train(params):
 
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params.learning_rate)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
     # spawn writer
     model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.num_blocks,
@@ -79,11 +84,14 @@ def train(params):
         if os.path.exists(params.current_checkpoint) is True:
             checkpoint = torch.load(params.current_checkpoint)
             model.load_state_dict(checkpoint['model'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['scheduler'])
             start_epoch = checkpoint['epoch'] + 1
+
     model.to(device)
 
     print('Start ....')
-    for epoch in range(start_epoch, params.n_epochs):
+    for epoch in tqdm(range(start_epoch, params.n_epochs)):
         model.train()
         losses = []
         avg_bpd = []
@@ -108,6 +116,8 @@ def train(params):
             if batch_idx % 25 == 0:
                 print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
                       f'Bits/Dim: {bpd.mean():.2f}')
+
+        scheduler.step()
 
         for key, value in train_log.items():
             utils.print_and_log_scalar(writer, 'train/%s' % key, value, epoch)
@@ -146,11 +156,11 @@ def train(params):
                     all_samples = all_samples.contiguous()  # bs, L, 3, 32, 32
                     all_samples = all_samples.view(-1, x.size(-3), x.size(-2), x.size(-1))
 
-                    save_image(utils.scale_inv(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
+                    save_image(utils.scale_inv_celeba(all_samples), os.path.join(sample_dir, 'test_levels_{}.png'.format(epoch)),
                                nrow=12)
-                    save_image(utils.scale_inv(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
+                    save_image(utils.scale_inv_celeba(out), os.path.join(sample_dir, 'test_recon_{}.png'.format(epoch)), nrow=12)
 
-                    save_image(utils.scale_inv(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
+                    save_image(utils.scale_inv_celeba(model.sample(64)), os.path.join(sample_dir, 'sample_{}.png'.format(epoch)),
                                nrow=8)
 
             print(f'===> Validation | Epoch: {epoch + 1} | Loss: {sum(losses) / len(losses):.2f} | '
@@ -164,6 +174,8 @@ def train(params):
             state_dict = {
                 "model": model.state_dict(),
                 "epoch": epoch,
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
             }
             torch.save(state_dict, os.path.join(log_dir, f'checkpoint_epoch_{epoch + 1}.pth'))
 

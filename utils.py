@@ -78,5 +78,9 @@ def reset_log():
     return logs
 
 
-def scale_inv(images):
+def scale_inv_cifar10(images):
     return images + 0.5
+
+
+def scale_inv_celeba(images):
+    return images.mul(0.5).add_(0.5)
