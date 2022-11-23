@@ -151,6 +151,7 @@ class CelebA(VisionDataset):
         extract_archive(os.path.join(self.root, "img_align_celeba.zip"))
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        print(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))
         X = PIL.Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))
 
         target: Any = []
