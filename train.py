@@ -57,6 +57,7 @@ def train(params):
                         image_size=params.image_size,
                         device=device,
                         )
+    model.to(device)
 
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params.learning_rate)
@@ -87,8 +88,6 @@ def train(params):
             optimizer.load_state_dict(checkpoint['optimizer'])
             scheduler.load_state_dict(checkpoint['scheduler'])
             start_epoch = checkpoint['epoch'] + 1
-
-    model.to(device)
 
     print('Start ....')
     for epoch in tqdm(range(start_epoch, params.n_epochs)):
