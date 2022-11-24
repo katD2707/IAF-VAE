@@ -85,7 +85,7 @@ class CVAE(nn.Module):
 
         h = self.activation(h)
         h = self.x_dec(h)
-        h = torch.clamp(h, -0.5 + 1 / 512., 0.5 - 1 / 512.)
+        h = torch.clamp(h, -1 + 1 / 512., 1 - 1 / 512.)
 
         log_pxz = discretized_logistic(h, self.dec_log_stdv, sample=inputs)
         obj = (kl_obj - log_pxz).sum()
@@ -105,7 +105,7 @@ class CVAE(nn.Module):
         h = F.elu(h)
         h = self.x_dec(h)
 
-        return h.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
+        return h.clamp(min=-1 + 1. / 512., max=1 - 1. / 512.)
 
     def cond_sample(self, inputs):
         x = self.x_enc(inputs)
@@ -137,7 +137,7 @@ class CVAE(nn.Module):
 
                 x = F.elu(h_copy)
                 x = self.x_dec(x)
-                x = x.clamp(min=-0.5 + 1. / 512., max=0.5 - 1. / 512.)
+                x = x.clamp(min=-1 + 1. / 512., max=1 - 1. / 512.)
                 outs += [x]
 
                 current += 1
