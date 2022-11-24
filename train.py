@@ -60,7 +60,7 @@ def train(params):
 
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params.learning_rate)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
 
     # spawn writer
     model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.num_blocks,
@@ -117,7 +117,6 @@ def train(params):
                 print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
                       f'Bits/Dim: {bpd.mean():.2f}')
 
-        scheduler.step()
 
         for key, value in train_log.items():
             utils.print_and_log_scalar(writer, 'train/%s' % key, value, epoch)
@@ -171,6 +170,8 @@ def train(params):
 
             for key, value in test_log.items():
                 utils.print_and_log_scalar(writer, 'test/%s' % key, value, epoch)
+
+        scheduler.step(metrics=sum(avg_bpd)/len(avg_bpd))
 
         if (epoch + 1) % params.checkpoint_frequency == 0 or epoch == 0:
             # Save model checkpoint and epoch
