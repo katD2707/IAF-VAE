@@ -138,7 +138,7 @@ class CelebA(VisionDataset):
         return X
 
     def __len__(self) -> int:
-        return len(self.attr)
+        return len(self.filename)
 
     def extra_repr(self) -> str:
         lines = ["Target type: {target_type}", "Split: {split}"]
