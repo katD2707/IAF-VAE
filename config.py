@@ -24,8 +24,8 @@ def parse_args():
     parser.add_argument('--n_epochs', default=1000, type=int)
     parser.add_argument('--checkpoint_path', default="./", type=str)
     parser.add_argument('--validate', action='store_true')
-    parser.add_argument('num_train', default=50000, type=int)
-    parser.add_argument('num_val', default=10000, type=int)
+    parser.add_argument('--num_train', default=50000, type=int)
+    parser.add_argument('--num_val', default=10000, type=int)
     # parser.add_argument('--validate_every', default=4, type=int)
     parser.add_argument('--seed', default=0, type=int)
 
