@@ -79,12 +79,13 @@ class CelebA(VisionDataset):
         }
         split_ = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
         splits = self._load_csv("list_eval_partition.csv", header=0)
+        print(splits)
         bbox = self._load_csv("list_bbox_celeba.csv", header=0)
         landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=0)
         attr = self._load_csv("list_attr_celeba.csv", header=0)
 
         mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
-
+        print(mask)
         if mask == slice(None):  # if split == "all"
             self.filename = splits.index
         else:
