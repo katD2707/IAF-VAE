@@ -10,8 +10,6 @@ from datasets.BaseDataset import VisionDataset
 
 CSV = namedtuple("CSV", ["header", "index", "data"])
 
-import glob
-
 class CelebA(VisionDataset):
     """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
 
@@ -64,7 +62,7 @@ class CelebA(VisionDataset):
         transform: Optional[Callable] = None,
         download: bool = False,
     ) -> None:
-        super().__init__(root, transform=transform, target_transform=target_transform)
+        super().__init__(root, transform=transform)
         self.split = split
 
         if not self.target_type and self.target_transform is not None:
