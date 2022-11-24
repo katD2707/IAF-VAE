@@ -88,7 +88,6 @@ class CelebA(VisionDataset):
             self.filename = splits.index
         else:
             self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
-        print(self.filename)
         self.bbox = bbox.data[mask]
         self.landmarks_align = landmarks_align.data[mask]
         self.attr = attr.data[mask]
