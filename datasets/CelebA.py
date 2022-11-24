@@ -58,6 +58,7 @@ class CelebA(VisionDataset):
     def __init__(
         self,
         root: str,
+        subsample_size: int,
         split: str = "train",
         transform: Optional[Callable] = None,
         download: bool = False,
@@ -79,21 +80,13 @@ class CelebA(VisionDataset):
         }
         split_ = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
         splits = self._load_csv("list_eval_partition.csv", header=0)
-        bbox = self._load_csv("list_bbox_celeba.csv", header=0)
-        landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=0)
-        attr = self._load_csv("list_attr_celeba.csv", header=0)
 
         mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
         if mask == slice(None):  # if split == "all"
             self.filename = splits.index
         else:
             self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
-        self.bbox = bbox.data[mask]
-        self.landmarks_align = landmarks_align.data[mask]
-        self.attr = attr.data[mask]
-        # map from {-1, 1} to {0, 1}
-        self.attr = torch.div(self.attr + 1, 2, rounding_mode="floor")
-        self.attr_names = attr.header
+            self.filename = self.filename[:subsample_size]
 
     def _load_csv(
         self,

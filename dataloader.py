@@ -104,18 +104,22 @@ class CelebA:
     def __init__(self,
                  split_train,
                  split_val,
+                 subsample_train,
+                 subsample_val,
                  transform_train=None,
                  transform_val=None,
                  root='./data',
                  download=True,
                  ):
         self.trainset = datasets.CelebA(root=root,
+                                        subsample_size=subsample_train,
                                         split=split_train,
                                         download=download,
                                         transform=transform_train,
                                         )
         if split_train is not "all":
             self.testset = datasets.CelebA(root=root,
+                                           subsample_size=subsample_val,
                                            split=split_val,
                                            download=download,
                                            transform=transform_val,

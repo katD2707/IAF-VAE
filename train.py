@@ -33,6 +33,8 @@ def train(params):
     dataset = dataloader.CelebA(root=params.data_path,
                                 split_train="train",
                                 split_val="valid",
+                                subsample_train=params.num_train,
+                                subsample_val=params.num_val,
                                 transform_train=transform,
                                 transform_val=transform,
                                 download=False,
