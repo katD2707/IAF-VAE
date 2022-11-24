@@ -113,7 +113,7 @@ def train(params):
             train_log['bpd'] += [bpd.mean()]
             train_log['elbo'] += [elbo.mean()]
 
-            if batch_idx % 25 == 0:
+            if batch_idx % 50 == 0:
                 print(f'Epoch: {epoch + 1} | Step: {batch_idx + 1}/{len(train_loader)} | Loss: {loss:.2f} | '
                       f'Bits/Dim: {bpd.mean():.2f}')
 
