@@ -61,17 +61,11 @@ class CelebA(VisionDataset):
         self,
         root: str,
         split: str = "train",
-        target_type: Union[List[str], str] = "attr",
         transform: Optional[Callable] = None,
-        target_transform: Optional[Callable] = None,
         download: bool = False,
     ) -> None:
         super().__init__(root, transform=transform, target_transform=target_transform)
         self.split = split
-        if isinstance(target_type, list):
-            self.target_type = target_type
-        else:
-            self.target_type = [target_type]
 
         if not self.target_type and self.target_transform is not None:
             raise RuntimeError("target_transform is specified but target_type is empty")
@@ -93,17 +87,14 @@ class CelebA(VisionDataset):
         bbox = self._load_csv("list_bbox_celeba.csv", header=0)
         landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=0)
         attr = self._load_csv("list_attr_celeba.csv", header=0)
-        # print(bbox.__sizeof__())
-        # print(attr.__sizeof__())
-        # print(landmarks_align.__sizeof__())
-        # print(splits.__sizeof__())
+
         mask = slice(None) if split_ is None else (splits.data == split_).squeeze()
 
         if mask == slice(None):  # if split == "all"
             self.filename = splits.index
         else:
             self.filename = [splits.index[i] for i in torch.squeeze(torch.nonzero(mask))]
-
+        print(self.filename)
         self.bbox = bbox.data[mask]
         self.landmarks_align = landmarks_align.data[mask]
         self.attr = attr.data[mask]
@@ -118,7 +109,6 @@ class CelebA(VisionDataset):
     ) -> CSV:
         with open(os.path.join(self.root, filename)) as csv_file:
             data = list(csv.reader(csv_file, delimiter=" ", skipinitialspace=True))
-            print(data[0])
         if header is not None:
             headers = data[header]
             data = data[header + 1:]
@@ -153,34 +143,13 @@ class CelebA(VisionDataset):
 
         extract_archive(os.path.join(self.root, "img_align_celeba.zip"))
 
-    def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        print(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))
+    def __getitem__(self, index: int) -> Any:
         X = PIL.Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))
-
-        target: Any = []
-        for t in self.target_type:
-            if t == "attr":
-                target.append(self.attr[index, :])
-            elif t == "bbox":
-                target.append(self.bbox[index, :])
-            elif t == "landmarks":
-                target.append(self.landmarks_align[index, :])
-            else:
-                raise ValueError(f'Target type "{t}" is not recognized.')
 
         if self.transform is not None:
             X = self.transform(X)
 
-        if target:
-            target = tuple(target) if len(target) > 1 else target[0]
-
-            if self.target_transform is not None:
-                target = self.target_transform(target)
-        else:
-            target = None
-
-        return X, target
-
+        return X
 
     def __len__(self) -> int:
         return len(self.attr)

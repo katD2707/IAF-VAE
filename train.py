@@ -95,7 +95,7 @@ def train(params):
         avg_bpd = []
         train_log = utils.reset_log()
 
-        for batch_idx, (inputs, _) in enumerate(train_loader):
+        for batch_idx, (inputs) in enumerate(train_loader):
             inputs = inputs.cuda()
             x, loss, elbo = model(inputs)
 
