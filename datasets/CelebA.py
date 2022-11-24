@@ -79,7 +79,7 @@ class CelebA(VisionDataset):
         }
         split_ = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
         splits = self._load_csv("list_eval_partition.csv", header=0)
-        print(splits)
+        print(splits[:3])
         bbox = self._load_csv("list_bbox_celeba.csv", header=0)
         landmarks_align = self._load_csv("list_landmarks_align_celeba.csv", header=0)
         attr = self._load_csv("list_attr_celeba.csv", header=0)
