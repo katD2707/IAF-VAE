@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('--kl_min', default=0.2, type=float)
     parser.add_argument('--num_hidden_layers', default=2, type=int)
     parser.add_argument('--num_blocks', default=2, type=int)
-    parser.add_argument('--learning_rate', default=0.002, type=float)
+    parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--checkpoint_frequency', default=10, type=int)
     parser.add_argument('--n_epochs', default=1000, type=int)
     parser.add_argument('--checkpoint_path', default="./", type=str)
