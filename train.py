@@ -60,7 +60,7 @@ def train(params):
 
     # Optimizer
     optimizer = optim.Adamax(model.parameters(), lr=params.learning_rate)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params.patience)
 
     # spawn writer
     model_name = 'NB{}_D{}_Z{}_H{}_BS{}_LR{}'.format(params.num_blocks,
