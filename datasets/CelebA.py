@@ -104,7 +104,7 @@ class CelebA(VisionDataset):
         header: Optional[int] = None,
     ) -> CSV:
         with open(os.path.join(self.root, filename)) as csv_file:
-            data = list(csv.reader(csv_file, delimiter=" ", skipinitialspace=True))
+            data = list(csv.reader(csv_file, skipinitialspace=True))
         if header is not None:
             headers = data[header]
             data = data[header + 1:]
