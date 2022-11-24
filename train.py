@@ -130,7 +130,7 @@ def train(params):
         test_log = utils.reset_log()
 
         with torch.no_grad():
-            for batch_idx, (inputs, _) in enumerate(val_loader):
+            for batch_idx, (inputs) in enumerate(val_loader):
                 inputs = inputs.cuda()
                 x, loss, elbo = model(inputs)
 
